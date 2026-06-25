@@ -5,3 +5,6 @@ __pycache__/
 data/charts/
 *.whl
 *.pyc
+static/gpa_trend.png
+pip
+python
