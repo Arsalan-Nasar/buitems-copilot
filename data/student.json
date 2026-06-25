@@ -1,0 +1,36 @@
+{
+  "student_id": "66435",
+  "name": "Arsalan Khan Nasir",
+  "program": "BS Information Technology",
+  "current_semester": 4,
+  "semesters": {
+    "1": { "term": "Fall 2024", "courses": [
+      { "code": "CS 123", "title": "Applications of ICT", "credit_hours": 2, "mid": 20, "final": 42, "sessional": 21 },
+      { "code": "ENG 101", "title": "English Composition", "credit_hours": 3, "mid": 18, "final": 40, "sessional": 20 },
+      { "code": "MATH 101", "title": "Calculus I", "credit_hours": 3, "mid": 15, "final": 35, "sessional": 18 } ] },
+    "2": { "term": "Spring 2025", "courses": [
+      { "code": "CS 114", "title": "Programming Fundamentals", "credit_hours": 3, "mid": 14, "final": 30, "sessional": 17 },
+      { "code": "MATH 102", "title": "Calculus II", "credit_hours": 3, "mid": 16, "final": 33, "sessional": 19 },
+      { "code": "PHY 101", "title": "Physics", "credit_hours": 3, "mid": 22, "final": 45, "sessional": 23 } ] },
+    "3": { "term": "Fall 2025", "courses": [
+      { "code": "CS 212", "title": "Object Oriented Programming", "credit_hours": 3, "mid": 21, "final": 44, "sessional": 22 },
+      { "code": "IT 304", "title": "Information Security", "credit_hours": 3, "mid": 19, "final": 41, "sessional": 21 },
+      { "code": "MATH 111", "title": "Linear Algebra", "credit_hours": 3, "mid": 17, "final": 38, "sessional": 20 } ] },
+    "4": { "term": "Spring 2026", "courses": [
+      { "code": "CS 221", "title": "Data Structures", "credit_hours": 3, "mid": 20, "final": null, "sessional": 22 },
+      { "code": "CS 412", "title": "Artificial Intelligence", "credit_hours": 2, "mid": 18, "final": null, "sessional": 20 },
+      { "code": "HUM 201", "title": "Expository Writing", "credit_hours": 3, "mid": 16, "final": null, "sessional": 19 } ] }
+  },
+  "fees": [
+    { "term": "Fall 2024", "total": 71005, "paid": 71005 },
+    { "term": "Spring 2025", "total": 53415, "paid": 53415 },
+    { "term": "Fall 2025", "total": 50415, "paid": 50415 },
+    { "term": "Spring 2026", "total": 53415, "paid": 14000 } ],
+  "attendance": [
+    { "code": "CS 221", "title": "Data Structures", "present": 28, "total": 34 },
+    { "code": "CS 412", "title": "Artificial Intelligence", "present": 19, "total": 30 },
+    { "code": "HUM 201", "title": "Expository Writing", "present": 31, "total": 33 } ],
+  "schedule": [
+    { "code": "CS 221", "day": "Monday", "time": "11:00 AM - 12:30 PM", "room": "TBA" },
+    { "code": "HUM 201", "day": "Tuesday", "time": "9:30 AM - 11:30 AM", "room": "TBA" } ]
+}
