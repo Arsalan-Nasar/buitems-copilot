@@ -7,82 +7,58 @@
   <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-
-  <!-- top bar -->
-  <header class="topbar">
+  <header class="hdr">
     <div class="brand">
       <img class="logo" src="/static/markhor.png" alt="">
       <div class="t">BUITEMS <span>Copilot</span></div>
     </div>
-    <nav class="topnav">
-      <a href="#" data-q="show my semester 3 result">Results</a>
-      <a href="#" data-q="what is my cgpa">CGPA</a>
-      <a href="#" data-q="how much fees do I owe">Fees</a>
-      <a href="#" data-q="what is my attendance">Attendance</a>
-      <a href="#" data-q="what is my schedule">Schedule</a>
-    </nav>
+    <div style="display:flex;align-items:center;gap:14px;">
+      <a href="/guide" style="font-size:13px;color:#cfe0ee;text-decoration:none;background:#2b6ca3;padding:7px 14px;border-radius:7px;">Guide</a>
+      <div class="status"><span class="live"></span> Online</div>
+    </div>
   </header>
 
-  <!-- hero -->
-  <section class="hero">
-    <div class="eyebrow">BUITEMS Student Assistant</div>
-    <h1>Your whole portal,<br><b>answered in one place.</b></h1>
-    <p>Ask about results, CGPA, fees, attendance and your schedule — and get a clear answer in seconds, drawn from your record.</p>
-  </section>
-
-  <!-- chat console -->
-  <section class="console">
-    <div class="card">
-      <div class="card-head"><span class="live"></span> Copilot · connected to your record</div>
-      <div class="stream" id="stream"></div>
-      <div class="bar">
-        <input id="inp" type="text" placeholder="Ask anything — e.g. 'show my semester 3 result'" autocomplete="off">
-        <button id="send">Ask</button>
+  <main class="chat" id="chat">
+    <div class="chat-inner" id="chatInner">
+      <div class="welcome-msg" id="welcome">
+        <img src="/static/markhor.png" alt="">
+        <h2>How can I help you today?</h2>
+        <p>Ask about your result, CGPA, fees, attendance or schedule — in English or Roman Urdu.</p>
       </div>
     </div>
-    <div class="suggest">
-      <span data-q="what is my cgpa">My CGPA</span>
-      <span data-q="how much fees do I owe">Fees pending</span>
-      <span data-q="what is my attendance">Attendance</span>
-      <span data-q="what should I know">What should I know?</span>
-      <span data-q="show my gpa trend">GPA trend</span>
+  </main>
+
+  <div class="composer">
+    <div class="composer-inner">
+      <div class="chips-row">
+        <span data-q="show my semester 3 result">My Result</span>
+        <span data-q="what is my cgpa">CGPA</span>
+        <span data-q="how much fees do I owe">Fees</span>
+        <span data-q="what is my attendance">Attendance</span>
+        <span data-q="show my gpa trend">GPA Trend</span>
+        <span data-q="what should I know">Alerts</span>
+      </div>
+      <div class="input-glow">
+        <div class="input-wrap">
+          <input id="inp" placeholder="Message BUITEMS Copilot…" autocomplete="off">
+          <button id="send">➤</button>
+        </div>
+      </div>
     </div>
-  </section>
+  </div>
 
-  <!-- features -->
-  <section class="features">
-    <div class="sec-head">
-      <span class="eyebrow">Capabilities</span>
-      <h2>One assistant for everything you check</h2>
-      <p>Each answer is calculated from your real academic record — never guessed.</p>
+  <footer class="appfoot">
+    <div class="team-line">
+      <span class="mem"><b>Arsalan Nasar</b> — Founder &amp; Lead Developer</span>
+      <span class="dot">·</span>
+      <span class="mem"><b>Zarak Khan</b> — Documents &amp; Retrieval</span>
+      <span class="dot">·</span>
+      <span class="mem"><b>Sami Ullah</b> — Interface &amp; Testing</span>
     </div>
-    <div class="grid">
-      <div class="f"><div class="ic">&#9636;</div><h3>Report Card</h3><p>Every subject's marks and grade in one clean table, instantly.</p></div>
-      <div class="f"><div class="ic">&#9719;</div><h3>CGPA Dashboard</h3><p>All semesters, the trend, and your overall CGPA in one view.</p></div>
-      <div class="f"><div class="ic" style="font-size:13px">Rs</div><h3>Fee Summary</h3><p>See what you've paid and what's still due — in clear numbers.</p></div>
-      <div class="f"><div class="ic">&#9716;</div><h3>Attendance</h3><p>Per-course percentage with early low-attendance warnings.</p></div>
-      <div class="f"><div class="ic">&#8599;</div><h3>What-If &amp; Predictor</h3><p>Preview a grade, or see the marks you need to reach it.</p></div>
-      <div class="f"><div class="ic">&#9670;</div><h3>Goal Planner &amp; Alerts</h3><p>Plan your target CGPA and see what needs attention now.</p></div>
-    </div>
-  </section>
+    <div class="brand-line">Built by <b>ZIRA Technologies</b> — Where Intelligence Begins</div>
+  </footer>
 
-  <!-- team -->
-  <section class="team">
-    <img class="team-mk" src="/static/markhor.png" alt="">
-    <div class="lbl">The team behind it</div>
-    <div class="members">
-      <div class="m"><div class="av">AN</div><div class="nm">Arsalan Nasar</div><div class="rl">Founder &amp; Lead Developer</div></div>
-      <div class="m"><div class="av">ZK</div><div class="nm">Zarak Khan</div><div class="rl">Documents &amp; Retrieval</div></div>
-      <div class="m"><div class="av">SU</div><div class="nm">Sami Ullah</div><div class="rl">Interface &amp; Testing</div></div>
-    </div>
-    <div class="by">Built by <b>ZIRA Technologies</b> — Where Intelligence Begins</div>
-  </section>
-
-  <footer>BUITEMS Copilot · a student-built assistant for the BUITEMS portal</footer>
-
-  <div class="cursor" id="cur"></div>
-  <div class="ring" id="ring"></div>
-
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <script src="/static/script.js"></script>
 </body>
 </html>

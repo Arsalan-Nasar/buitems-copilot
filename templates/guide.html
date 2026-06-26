@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Guide - BUITEMS Copilot</title>
+<style>
+  :root{
+    --navy:#13344e;--navy-2:#1c4a6e;--blue:#2b6ca3;--blue-2:#3f86c4;
+    --panel:#f0f5f9;--line:#e2e9f0;--ink:#1f2d3a;--ink-soft:#5a6b7a;
+    --bg:#eef3f7;--white:#fff;--gold:#c79a3b;--gold-2:#e6c25e;--ok:#2e8b57;
+    --serif:Georgia, "Times New Roman", "Times", serif;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{font-family:var(--serif);color:var(--ink);background:var(--bg);overflow-x:hidden;position:relative;font-size:15px;line-height:1.55;}
+  body::before{content:"";position:fixed;inset:-30%;z-index:-2;background:radial-gradient(40% 50% at 18% 20%,rgba(43,108,163,.16),transparent 60%),radial-gradient(45% 55% at 84% 28%,rgba(28,74,110,.18),transparent 62%),radial-gradient(50% 50% at 50% 90%,rgba(199,154,59,.10),transparent 60%);filter:blur(40px);animation:drift 20s ease-in-out infinite alternate;}
+  @keyframes drift{0%{transform:translate(0,0) scale(1)}50%{transform:translate(2%,-2%) scale(1.05)}100%{transform:translate(-2%,2%) scale(1)}}
+
+  .hdr{background:var(--navy);color:#fff;display:flex;align-items:center;justify-content:space-between;padding:0 24px;height:56px;position:sticky;top:0;z-index:100;box-shadow:0 2px 18px rgba(19,52,78,.25);}
+  .hdr .brand{display:flex;align-items:center;gap:10px;}
+  .hdr .logo{width:30px;height:30px;border-radius:50%;object-fit:cover;object-position:center top;background:#1c4a6e;border:1px solid rgba(158,203,233,.3);}
+  .hdr .t{font-size:16px;font-weight:700;}
+  .hdr .t span{color:#9ecbe9;font-weight:400;}
+  .hdr .back{font-size:13px;font-weight:700;color:#fff;text-decoration:none;background:var(--blue);padding:8px 15px;border-radius:8px;transition:.2s;}
+  .hdr .back:hover{background:var(--blue-2);transform:translateY(-1px);}
+
+  .ghero{position:relative;text-align:center;padding:58px 24px 86px;overflow:hidden;background:linear-gradient(165deg,#0c2740 0%,#15436a 60%,#1f5688 100%);color:#fff;}
+  .ghero::after{content:"";position:absolute;inset:0;background:linear-gradient(115deg,transparent 35%,rgba(255,255,255,.06) 50%,transparent 65%);background-size:300% 300%;animation:sheen 16s linear infinite;}
+  @keyframes sheen{0%{background-position:0% 0%}100%{background-position:100% 100%}}
+  .ghero .mk{position:absolute;right:-30px;bottom:-40px;width:200px;opacity:.12;animation:floaty 6s ease-in-out infinite;}
+  @keyframes floaty{0%,100%{transform:translateY(0)}50%{transform:translateY(-12px)}}
+  .ghero .inner{position:relative;z-index:2;max-width:660px;margin:0 auto;opacity:0;animation:rise .8s .1s forwards;}
+  @keyframes rise{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}
+  .ghero .eyebrow{font-size:11px;letter-spacing:3px;text-transform:uppercase;color:#9ecbe9;font-weight:700;}
+  .ghero h1{font-size:clamp(26px,4.4vw,38px);font-weight:700;margin-top:12px;letter-spacing:-.4px;line-height:1.15;}
+  .ghero h1 b{color:var(--gold-2);}
+  .ghero p{font-size:15px;color:#cfe0ee;max-width:500px;margin:14px auto 0;line-height:1.6;font-style:italic;}
+
+  .wrap{max-width:880px;margin:0 auto;padding:0 24px;}
+  .sec{margin-top:-50px;position:relative;z-index:3;padding-bottom:20px;}
+
+  .card{background:#fff;border:1px solid var(--line);border-radius:16px;padding:30px;margin-bottom:22px;box-shadow:0 18px 50px -28px rgba(19,52,78,.4);opacity:0;transform:translateY(24px);}
+  .card.in{opacity:1;transform:none;transition:.7s cubic-bezier(.2,.7,.3,1);}
+  .tag{display:inline-block;font-size:10.5px;letter-spacing:1.8px;text-transform:uppercase;color:var(--blue);font-weight:700;background:var(--panel);padding:5px 12px;border-radius:20px;margin-bottom:14px;}
+  .card h2{font-size:22px;color:var(--navy);font-weight:700;margin-bottom:11px;letter-spacing:-.3px;line-height:1.25;}
+  .card>p{font-size:14.5px;color:var(--ink-soft);line-height:1.7;}
+  .card>p b{color:var(--ink);}
+
+  /* SPECIAL WOW BOX */
+  .wow-wrap{position:relative;margin-bottom:22px;border-radius:18px;padding:3px;opacity:0;transform:translateY(24px);}
+  .wow-wrap.in{opacity:1;transform:none;transition:.8s cubic-bezier(.2,.7,.3,1);}
+  .wow-wrap::before{content:"";position:absolute;inset:0;border-radius:18px;padding:2px;background:linear-gradient(120deg,#2b6ca3,#3f86c4,#e6c25e,#c79a3b,#2b6ca3);background-size:300% 300%;animation:lights 6s linear infinite;-webkit-mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);-webkit-mask-composite:xor;mask-composite:exclude;}
+  .wow-wrap::after{content:"";position:absolute;inset:-3px;border-radius:20px;z-index:-1;background:linear-gradient(120deg,rgba(43,108,163,.5),rgba(230,194,94,.45),rgba(43,108,163,.5));background-size:300% 300%;animation:lights 6s linear infinite;filter:blur(15px);opacity:.5;}
+  @keyframes lights{0%{background-position:0% 50%}100%{background-position:300% 50%}}
+  .wow{position:relative;background:linear-gradient(135deg,#10314c 0%,#1a466b 100%);border-radius:16px;padding:30px;color:#fff;overflow:hidden;}
+  .wow .tag{background:rgba(230,194,94,.15);color:var(--gold-2);}
+  .wow h2{color:#fff;}
+  .wow .lead{color:#cfe0ee;font-size:14.5px;line-height:1.7;margin-bottom:22px;font-style:italic;}
+  .wowgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:15px;}
+  .wowitem{background:rgba(255,255,255,.05);border:1px solid rgba(158,203,233,.22);border-radius:13px;padding:18px;transition:transform .25s,background .25s,border-color .25s;}
+  .wowitem:hover{transform:translateY(-4px);background:rgba(255,255,255,.09);border-color:rgba(230,194,94,.4);}
+  .wowitem .lead-n{font-size:12px;font-weight:700;color:var(--gold-2);letter-spacing:1px;margin-bottom:8px;}
+  .wowitem h3{font-size:16px;color:#fff;margin-bottom:6px;font-weight:700;}
+  .wowitem p{font-size:13px;color:#aecae0;line-height:1.6;}
+
+  .steps{display:flex;flex-direction:column;gap:16px;margin-top:8px;}
+  .step{display:flex;gap:16px;align-items:flex-start;}
+  .step .n{min-width:38px;height:38px;border-radius:11px;background:linear-gradient(135deg,var(--blue),var(--navy));color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:16px;flex-shrink:0;box-shadow:0 8px 18px -8px rgba(43,108,163,.6);}
+  .step .tx h3{font-size:15.5px;color:var(--navy);margin-bottom:3px;font-weight:700;}
+  .step .tx p{font-size:14px;color:var(--ink-soft);line-height:1.6;}
+
+  .fgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-top:6px;}
+  .fitem{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:17px;transition:transform .25s,box-shadow .25s;}
+  .fitem:hover{transform:translateY(-3px);box-shadow:0 16px 32px -20px rgba(19,52,78,.4);}
+  .fitem h3{font-size:15px;color:var(--navy);margin-bottom:5px;font-weight:700;}
+  .fitem h3::before{content:"";display:inline-block;width:7px;height:7px;background:var(--gold);border-radius:50%;margin-right:8px;vertical-align:middle;}
+  .fitem p{font-size:13px;color:var(--ink-soft);line-height:1.55;}
+
+  .prompt{background:var(--panel);border-left:3px solid var(--blue);border-radius:9px;padding:12px 16px;margin-bottom:10px;font-size:14.5px;color:var(--navy);font-weight:700;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;transition:transform .2s,border-color .2s;}
+  .prompt:hover{transform:translateX(4px);border-left-color:var(--gold);}
+  .prompt span{font-size:12.5px;color:var(--ink-soft);font-weight:400;font-style:italic;}
+
+  .tip{background:#fdf8ee;border:1px solid #ecd9ad;border-radius:11px;padding:14px 18px;margin-top:11px;}
+  .tip b{color:#9a6f1a;}
+  .tip p{font-size:14px;color:#6b5320;line-height:1.6;}
+
+  footer{background:var(--navy);color:#cfe0ee;text-align:center;padding:24px;font-size:13px;margin-top:32px;}
+  footer b{color:var(--gold-2);}
+
+  @media(max-width:680px){
+    .ghero{padding:46px 20px 74px;}
+    .fgrid,.wowgrid{grid-template-columns:1fr;}
+    .card,.wow{padding:22px;}
+    .card h2{font-size:20px;}
+    .sec{margin-top:-44px;}
+  }
+</style>
+</head>
+<body>
+  <header class="hdr">
+    <div class="brand"><img class="logo" src="/static/markhor.png"><div class="t">BUITEMS <span>Copilot</span></div></div>
+    <a href="/" class="back">&larr; Back to Copilot</a>
+  </header>
+
+  <section class="ghero">
+    <img class="mk" src="/static/markhor.png">
+    <div class="inner">
+      <div class="eyebrow">Quick Guide</div>
+      <h1>How to use <b>BUITEMS Copilot</b></h1>
+      <p>Everything you can do, explained simply. It takes just a minute to learn.</p>
+    </div>
+  </section>
+
+  <div class="wrap sec">
+
+    <div class="wow-wrap" id="wowbox">
+      <div class="wow">
+        <span class="tag">What makes it special</span>
+        <h2>Not just a chatbot</h2>
+        <p class="lead">BUITEMS Copilot does things an ordinary chatbot cannot. It understands how you talk, does the mathematics itself, and looks out for you.</p>
+        <div class="wowgrid">
+          <div class="wowitem"><div class="lead-n">01</div><h3>Speaks Roman Urdu</h3><p>Type the way you talk. &ldquo;Mera result dikhao&rdquo; works just like English, and it replies in the same language.</p></div>
+          <div class="wowitem"><div class="lead-n">02</div><h3>What-If &amp; Predictor</h3><p>Ask what a final mark would give you, or what marks you need for a grade. It plans your results before the exam.</p></div>
+          <div class="wowitem"><div class="lead-n">03</div><h3>Always Accurate</h3><p>It calculates every grade and GPA using the real BUITEMS rules. It never guesses your numbers.</p></div>
+          <div class="wowitem"><div class="lead-n">04</div><h3>Looks Out For You</h3><p>It warns you about low attendance, pending fees, and missing results before they become a problem.</p></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <span class="tag">What is this</span>
+      <h2>Your portal, made simple</h2>
+      <p>BUITEMS Copilot is a smart assistant for BUITEMS students. Instead of clicking through many pages to find your result, CGPA, fees or attendance, you simply <b>ask a question</b> and get a clear answer in seconds. You can write in <b>English or Roman Urdu</b>, whichever feels easy.</p>
+    </div>
+
+    <div class="card">
+      <span class="tag">Why we made it</span>
+      <h2>Because the portal is hard to use</h2>
+      <p>The portal holds everything, but it is slow and confusing. Your marks are spread across many pages, your CGPA is hidden inside tables, and fees and attendance are difficult to read. We built Copilot to give you a <b>fast, clear, and friendly</b> way to check your studies, any time.</p>
+    </div>
+
+    <div class="card">
+      <span class="tag">How to use it</span>
+      <h2>Just three easy steps</h2>
+      <div class="steps">
+        <div class="step"><div class="n">1</div><div class="tx"><h3>Type your question</h3><p>Use the box at the bottom of the screen. Write the way you talk, for example &ldquo;show my result&rdquo; or &ldquo;meri fees kitni baqi hai&rdquo;.</p></div></div>
+        <div class="step"><div class="n">2</div><div class="tx"><h3>Or tap a quick button</h3><p>Above the box you will find quick buttons for Result, CGPA, Fees, Attendance and GPA Trend. Tap one for an instant answer.</p></div></div>
+        <div class="step"><div class="n">3</div><div class="tx"><h3>Read, save, or share</h3><p>Your answer appears as a clean card. On a result, tap <b>Save as PNG</b> to download it and share with friends.</p></div></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <span class="tag">What it can do</span>
+      <h2>Everything in one place</h2>
+      <div class="fgrid">
+        <div class="fitem"><h3>Your Result</h3><p>All your subject marks and grades for any semester.</p></div>
+        <div class="fitem"><h3>CGPA &amp; Trend</h3><p>Your CGPA, and how your GPA changed over time.</p></div>
+        <div class="fitem"><h3>Fee Summary</h3><p>What you have paid and what is still due, in clear numbers.</p></div>
+        <div class="fitem"><h3>Attendance</h3><p>Your attendance, with a warning if it falls low.</p></div>
+        <div class="fitem"><h3>What-If &amp; Predictor</h3><p>What a final mark gives you, or what you need for a grade.</p></div>
+        <div class="fitem"><h3>Smart Alerts</h3><p>A quick list of the things that need your attention.</p></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <span class="tag">Try these</span>
+      <h2>Example questions</h2>
+      <div class="prompt">show my semester 3 result <span>your full result</span></div>
+      <div class="prompt">what is my CGPA <span>all semesters and overall</span></div>
+      <div class="prompt">show my gpa trend <span>a GPA chart</span></div>
+      <div class="prompt">meri fees kitni baqi hai <span>fees, in Roman Urdu</span></div>
+      <div class="prompt">what do I need to get a B in Data Structures <span>grade predictor</span></div>
+      <div class="prompt">what should I know <span>your alerts</span></div>
+    </div>
+
+    <div class="card">
+      <span class="tag">Good to know</span>
+      <h2>A few quick tips</h2>
+      <div class="tip"><p><b>Tip 1.</b> You can write in Roman Urdu. Try &ldquo;mera result dikhao&rdquo; or &ldquo;meri attendance batao&rdquo;.</p></div>
+      <div class="tip"><p><b>Tip 2.</b> Every number is calculated correctly from your record. Copilot never guesses your marks.</p></div>
+      <div class="tip"><p><b>Tip 3.</b> Tap &ldquo;Save as PNG&rdquo; on your result to download and share it.</p></div>
+    </div>
+
+  </div>
+
+  <footer>Built by <b>ZIRA Technologies</b> &mdash; Where Intelligence Begins</footer>
+
+<script>
+  const io=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target);}});},{threshold:.1});
+  document.querySelectorAll('.card,.wow-wrap').forEach(function(c){io.observe(c);});
+</script>
+</body>
+</html>

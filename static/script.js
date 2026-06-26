@@ -1,78 +1,35 @@
 // static/script.js — BUITEMS Copilot interface logic
 
-// ---------- custom cursor ----------
-const cur = document.getElementById('cur'), ring = document.getElementById('ring');
-let rx=0, ry=0, mx=0, my=0;
-addEventListener('mousemove', e => { mx=e.clientX; my=e.clientY; cur.style.left=mx+'px'; cur.style.top=my+'px'; });
-(function loop(){ rx+=(mx-rx)*.2; ry+=(my-ry)*.2; ring.style.left=rx+'px'; ring.style.top=ry+'px'; requestAnimationFrame(loop); })();
-function bindHover(el){
-  el.addEventListener('mouseenter', ()=>{ ring.style.width='44px'; ring.style.height='44px'; ring.style.borderColor='rgba(43,108,163,.8)'; cur.style.background='#13344e'; });
-  el.addEventListener('mouseleave', ()=>{ ring.style.width='32px'; ring.style.height='32px'; ring.style.borderColor='rgba(43,108,163,.4)'; cur.style.background='#2b6ca3'; });
-}
-document.querySelectorAll('a,button,span,input,.f').forEach(bindHover);
-
-// ---------- scroll reveal ----------
-const io = new IntersectionObserver(es => es.forEach((e,i)=>{ if(e.isIntersecting){ setTimeout(()=>e.target.classList.add('in'), i*90); io.unobserve(e.target);} }), {threshold:.18});
-document.querySelectorAll('.f,.team').forEach(x=>io.observe(x));
-
-// ---------- tiny markdown -> html (tables, bold, headings, images) ----------
-function mdToHtml(md){
-  let lines = md.split('\n');
-  let html = '', inTable = false;
-  for(let i=0;i<lines.length;i++){
-    let line = lines[i];
-    // image: ![alt](url)
-    let img = line.match(/!\[.*?\]\((.*?)\)/);
-    if(img){ html += `<img src="${img[1]}" alt="">`; continue; }
-    // table row
-    if(/^\s*\|/.test(line)){
-      let cells = line.split('|').slice(1,-1).map(c=>c.trim());
-      // separator row like |---|---|
-      if(cells.every(c=>/^-+$/.test(c))) continue;
-      if(!inTable){ html += '<table>'; inTable = true;
-        html += '<tr>' + cells.map(c=>`<th>${inline(c)}</th>`).join('') + '</tr>';
-      } else {
-        html += '<tr>' + cells.map(c=>`<td>${inline(c)}</td>`).join('') + '</tr>';
-      }
-      continue;
-    } else if(inTable){ html += '</table>'; inTable = false; }
-    // headings ## or ###
-    if(/^#{1,3}\s/.test(line)){ html += `<h3>${inline(line.replace(/^#+\s/,''))}</h3>`; continue; }
-    if(line.trim()===''){ html += '<br>'; continue; }
-    html += `<div>${inline(line)}</div>`;
-  }
-  if(inTable) html += '</table>';
-  return html;
-}
-function inline(s){
-  return s.replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
-          .replace(/_(.+?)_/g,'<em>$1</em>');
-}
-
-// ---------- chat ----------
-const stream = document.getElementById('stream');
+const chatInner = document.getElementById('chatInner');
+const chatArea  = document.getElementById('chat');
 const inp = document.getElementById('inp');
+const MK = "/static/markhor.png";
 
-function addQ(text){
-  const b = document.createElement('div');
-  b.className = 'bubble q';
-  b.textContent = text;
-  stream.appendChild(b);
-  stream.scrollTop = stream.scrollHeight;
-}
-function addTyping(){
-  const w = document.createElement('div');
-  w.className = 'bubble a';
-  w.innerHTML = '<div class="typing"><i></i><i></i><i></i></div>';
-  stream.appendChild(w);
-  stream.scrollTop = stream.scrollHeight;
-  return w;
+function clearWelcome(){ const w=document.getElementById('welcome'); if(w) w.remove(); }
+function scrollDown(){ chatArea.scrollTop = chatArea.scrollHeight; }
+
+// ----- user message -----
+function userRow(text){
+  clearWelcome();
+  const r=document.createElement('div'); r.className='row user';
+  r.innerHTML = `<div class="avatar user">You</div><div class="msg"><div class="bubble"></div></div>`;
+  r.querySelector('.bubble').textContent = text;
+  chatInner.appendChild(r); scrollDown();
 }
 
+// ----- bot typing placeholder -----
+function botTyping(){
+  const r=document.createElement('div'); r.className='row bot';
+  r.innerHTML = `<div class="avatar bot"><img src="${MK}"></div><div class="msg"><div class="bubble"><div class="typing"><i></i><i></i><i></i></div></div></div>`;
+  chatInner.appendChild(r); scrollDown();
+  return r.querySelector('.bubble');
+}
+
+// ----- send a message to the engine -----
 async function ask(text){
   if(!text || !text.trim()) return;
-  addQ(text);
-  const typing = addTyping();
+  userRow(text);
+  const bubble = botTyping();
   try{
     const res = await fetch('/chat', {
       method:'POST',
@@ -80,28 +37,62 @@ async function ask(text){
       body: JSON.stringify({message: text})
     });
     const data = await res.json();
-    typing.innerHTML = mdToHtml(data.reply || 'Sorry, something went wrong.');
+    bubble.innerHTML = data.html || escapeHtml(data.reply || 'Sorry, something went wrong.');
+    attachDownload(bubble);
   }catch(err){
-    typing.innerHTML = 'Connection error. Please try again.';
+    bubble.textContent = 'Connection error. Please try again.';
   }
-  stream.scrollTop = stream.scrollHeight;
+  scrollDown();
 }
 
-// send button + enter key
-document.getElementById('send').addEventListener('click', ()=>{ ask(inp.value); inp.value=''; });
-inp.addEventListener('keydown', e=>{ if(e.key==='Enter'){ ask(inp.value); inp.value=''; } });
+function escapeHtml(s){ const d=document.createElement('div'); d.textContent=s; return d.innerHTML.replace(/\n/g,'<br>'); }
 
-// nav links + suggestion chips (data-q)
+// ----- PNG download (permanent fix: charts download directly, cards render branded) -----
+function attachDownload(bubble){
+  const btn = bubble.querySelector('.dl-png');
+  if(!btn) return;
+  btn.addEventListener('click', ()=>{
+    const card = bubble.querySelector('.result-card');
+    if(!card) return;
+
+    // CASE 1 — result has a chart image: download the image directly (full quality, never cut)
+    const chartImg = card.querySelector('img');
+    if(chartImg){
+      const link = document.createElement('a');
+      link.download = 'buitems-gpa-trend.png';
+      link.href = chartImg.src;
+      link.click();
+      return;
+    }
+
+    // CASE 2 — text result card: render a clean branded card to PNG
+    if(typeof html2canvas==='undefined') return;
+    const wrap = document.createElement('div');
+    wrap.style.cssText = 'position:fixed;left:-9999px;top:0;width:460px;background:#fff;padding:22px;font-family:Georgia,serif;border-radius:14px;';
+    wrap.innerHTML =
+      '<div style="display:flex;align-items:center;gap:9px;padding-bottom:14px;border-bottom:2px solid #eef3f7;margin-bottom:14px;">' +
+        '<img src="' + MK + '" style="width:34px;height:34px;border-radius:50%;background:#13344e;object-fit:cover;">' +
+        '<div style="font-size:16px;font-weight:700;color:#13344e;">BUITEMS <span style="color:#2b6ca3;font-weight:400;">Copilot</span></div>' +
+      '</div>' +
+      card.outerHTML +
+      '<div style="margin-top:16px;padding-top:12px;border-top:1px solid #eef3f7;text-align:center;font-size:10px;color:#8a9aa8;letter-spacing:1px;">via BUITEMS Copilot · by ZIRA Technologies</div>';
+    const innerBtn = wrap.querySelector('.dl'); if(innerBtn) innerBtn.remove();
+    document.body.appendChild(wrap);
+    html2canvas(wrap, {scale:2, backgroundColor:'#ffffff', logging:false}).then(canvas=>{
+      const link = document.createElement('a');
+      link.download = 'buitems-copilot-result.png';
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+      document.body.removeChild(wrap);
+    });
+  });
+}
+
+// ----- send button + enter -----
+document.getElementById('send').addEventListener('click', ()=>{ ask(inp.value); inp.value=''; });
+inp.addEventListener('keydown', e=>{ if(e.key==='Enter'){ ask(inp.value); inp.value=''; }});
+
+// ----- quick chips (data-q) -----
 document.querySelectorAll('[data-q]').forEach(el=>{
   el.addEventListener('click', e=>{ e.preventDefault(); ask(el.getAttribute('data-q')); });
-});
-
-// friendly opening message
-window.addEventListener('load', ()=>{
-  setTimeout(()=>{
-    const w = document.createElement('div');
-    w.className = 'bubble a';
-    w.innerHTML = mdToHtml("**Welcome.** Ask me about your results, CGPA, fees, attendance or schedule — in English or Roman Urdu. Try one of the suggestions below.");
-    stream.appendChild(w);
-  }, 500);
 });
