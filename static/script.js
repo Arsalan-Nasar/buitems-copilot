@@ -3,10 +3,27 @@
 const chatInner = document.getElementById('chatInner');
 const chatArea  = document.getElementById('chat');
 const inp = document.getElementById('inp');
-const MK = "/static/markhor.png";
+const MK = "/static/markhor2.png";
+const HISTORY_KEY = "copilotChatHistory";
 
 function clearWelcome(){ const w=document.getElementById('welcome'); if(w) w.remove(); }
 function scrollDown(){ chatArea.scrollTop = chatArea.scrollHeight; }
+
+// ----- save/restore chat across pages (cleared only when the tab/browser closes) -----
+function saveHistory(){
+  sessionStorage.setItem(HISTORY_KEY, chatInner.innerHTML);
+}
+function restoreHistory(){
+  const saved = sessionStorage.getItem(HISTORY_KEY);
+  if (saved && saved.trim()) {
+    chatInner.innerHTML = saved;
+    // re-attach download buttons on any restored bot replies
+    chatInner.querySelectorAll('.row.bot .bubble').forEach(b => attachDownload(b));
+    scrollDown();
+    return true;
+  }
+  return false;
+}
 
 // ----- user message -----
 function userRow(text){
@@ -15,6 +32,7 @@ function userRow(text){
   r.innerHTML = `<div class="avatar user">You</div><div class="msg"><div class="bubble"></div></div>`;
   r.querySelector('.bubble').textContent = text;
   chatInner.appendChild(r); scrollDown();
+  saveHistory();
 }
 
 // ----- bot typing placeholder -----
@@ -43,11 +61,12 @@ async function ask(text){
     bubble.textContent = 'Connection error. Please try again.';
   }
   scrollDown();
+  saveHistory();
 }
 
 function escapeHtml(s){ const d=document.createElement('div'); d.textContent=s; return d.innerHTML.replace(/\n/g,'<br>'); }
 
-// ----- PNG download (permanent fix: charts download directly, cards render branded) -----
+// ----- PNG download (chart = direct download, text card = branded render) -----
 function attachDownload(bubble){
   const btn = bubble.querySelector('.dl-png');
   if(!btn) return;
@@ -55,7 +74,6 @@ function attachDownload(bubble){
     const card = bubble.querySelector('.result-card');
     if(!card) return;
 
-    // CASE 1 — result has a chart image: download the image directly (full quality, never cut)
     const chartImg = card.querySelector('img');
     if(chartImg){
       const link = document.createElement('a');
@@ -65,7 +83,6 @@ function attachDownload(bubble){
       return;
     }
 
-    // CASE 2 — text result card: render a clean branded card to PNG
     if(typeof html2canvas==='undefined') return;
     const wrap = document.createElement('div');
     wrap.style.cssText = 'position:fixed;left:-9999px;top:0;width:460px;background:#fff;padding:22px;font-family:Georgia,serif;border-radius:14px;';
@@ -96,3 +113,6 @@ inp.addEventListener('keydown', e=>{ if(e.key==='Enter'){ ask(inp.value); inp.va
 document.querySelectorAll('[data-q]').forEach(el=>{
   el.addEventListener('click', e=>{ e.preventDefault(); ask(el.getAttribute('data-q')); });
 });
+
+// ----- restore previous chat on page load (if any) -----
+restoreHistory();

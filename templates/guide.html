@@ -19,7 +19,7 @@
 
   .hdr{background:var(--navy);color:#fff;display:flex;align-items:center;justify-content:space-between;padding:0 24px;height:56px;position:sticky;top:0;z-index:100;box-shadow:0 2px 18px rgba(19,52,78,.25);}
   .hdr .brand{display:flex;align-items:center;gap:10px;}
-  .hdr .logo{width:30px;height:30px;border-radius:50%;object-fit:cover;object-position:center top;background:#1c4a6e;border:1px solid rgba(158,203,233,.3);}
+  .hdr .logo{width:30px;height:30px;border-radius:50%;object-fit:cover;object-position:center;background:#1c4a6e;border:1px solid rgba(158,203,233,.3);}
   .hdr .t{font-size:16px;font-weight:700;}
   .hdr .t span{color:#9ecbe9;font-weight:400;}
   .hdr .back{font-size:13px;font-weight:700;color:#fff;text-decoration:none;background:var(--blue);padding:8px 15px;border-radius:8px;transition:.2s;}
@@ -47,7 +47,6 @@
   .card>p{font-size:14.5px;color:var(--ink-soft);line-height:1.7;}
   .card>p b{color:var(--ink);}
 
-  /* SPECIAL WOW BOX */
   .wow-wrap{position:relative;margin-bottom:22px;border-radius:18px;padding:3px;opacity:0;transform:translateY(24px);}
   .wow-wrap.in{opacity:1;transform:none;transition:.8s cubic-bezier(.2,.7,.3,1);}
   .wow-wrap::before{content:"";position:absolute;inset:0;border-radius:18px;padding:2px;background:linear-gradient(120deg,#2b6ca3,#3f86c4,#e6c25e,#c79a3b,#2b6ca3);background-size:300% 300%;animation:lights 6s linear infinite;-webkit-mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);-webkit-mask-composite:xor;mask-composite:exclude;}
@@ -87,6 +86,7 @@
 
   footer{background:var(--navy);color:#cfe0ee;text-align:center;padding:24px;font-size:13px;margin-top:32px;}
   footer b{color:var(--gold-2);}
+  .zira-mark{height:16px;width:auto;vertical-align:middle;display:inline-block;margin:0 2px;}
 
   @media(max-width:680px){
     .ghero{padding:46px 20px 74px;}
@@ -99,7 +99,10 @@
 </head>
 <body>
   <header class="hdr">
-    <div class="brand"><img class="logo" src="/static/markhor.png"><div class="t">BUITEMS <span>Copilot</span></div></div>
+    <div class="brand">
+      <img class="logo" src="/static/markhor.png" alt="">
+      <div class="t">BUITEMS <span>Copilot</span></div>
+    </div>
     <a href="/" class="back">&larr; Back to Copilot</a>
   </header>
 

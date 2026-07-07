@@ -39,15 +39,12 @@ def md_to_card(md, downloadable=False):
             return ""
         header = table_rows[0]
         body = table_rows[1:]
-        # build a compact horizontal table
         out = ['<table class="rtable">']
-        # header row
         out.append("<tr>")
         for i, h in enumerate(header):
             cls = "" if i == 0 else ' class="c"'
             out.append(f"<th{cls}>{h}</th>")
         out.append("</tr>")
-        # body rows
         for row in body:
             out.append("<tr>")
             for i, v in enumerate(row):
@@ -90,12 +87,15 @@ def md_to_card(md, downloadable=False):
             html.append(f'<div class="rc-title">{clean}</div>')
             title_done = True
             continue
-        if re.search(r"(GPA|CGPA).*[:—-]\s*[\d.]", clean) or "GPA this semester" in clean:
-            m = re.search(r"([\d.]+)\s*$", clean)
-            val = m.group(1) if m else ""
-            lbl = clean.split(":")[0] if ":" in clean else clean
+
+        is_bullet = s.startswith("-") or s.startswith("*")
+        strict_match = re.match(r'^([^:]{2,60}(?:GPA|CGPA)[^:]{0,20}):\s*(\d+\.?\d*)\s*$', clean)
+        if strict_match and not is_bullet:
+            lbl = strict_match.group(1).strip()
+            val = strict_match.group(2)
             html.append(f'<div class="rc-foot"><span class="lbl">{lbl}</span><span class="val">{val}</span></div>')
             continue
+
         bold = re.sub(r"\*\*(.+?)\*\*", r"<strong>\1</strong>", line)
         html.append(f'<div style="font-size:13.5px;line-height:1.55;margin:3px 0;">{bold}</div>')
 
@@ -111,7 +111,6 @@ def build_reply(message):
     intent, language = route(message)
     text = message.lower()
 
-    # GPA trend chart -> image card
     if any(w in text for w in ["trend", "graph", "chart"]):
         path = trend_chart(DATA)
         if path:
@@ -129,6 +128,11 @@ def build_reply(message):
     elif intent == "goal": reply = goal_planner(DATA, message); dl=False
     elif intent == "schedule": reply = schedule_summary(DATA, message); dl=True
     elif intent == "alerts": reply = alerts_summary(DATA); dl=False
+    elif intent == "out_of_scope":
+        reply = ("I can only show you your own academic information — I can't change grades, "
+                 "contact anyone on your behalf, or access another student's data. "
+                 "Is there something about your own results, fees, or attendance I can help with?")
+        dl = False
     else: reply = answer_question(message); dl=False
 
     if language == "roman_urdu":
@@ -155,6 +159,8 @@ def chat():
     try:
         html, _ = build_reply(message)
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         html = "Sorry, something went wrong while processing that."
     return jsonify({"html": html})
 
