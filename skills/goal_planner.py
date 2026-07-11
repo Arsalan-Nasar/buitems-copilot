@@ -83,16 +83,24 @@ def _find_goals(message):
             goals.append((v, sem))
             working = _mask(m.start(), m.end(), working)
 
-    # broad fallback: goal-intent words + a number, even without "cgpa" touching it.
-    # scanned clause-by-clause so a semester mentioned in one clause never
-    # leaks into a different goal mentioned in another clause.
-    if not goals:
-        intent_words = ("need", "graduate", "reach", "target", "possible",
-                         "achieve", "goal", "want", "get a", "get")
-        if any(w in working for w in intent_words):
-            clauses = re.split(r'\band also\b|\balso\b|;', working)
-            for clause in clauses:
-                goals.extend(_scan_clause_for_goals(clause))
+    # Goal-intent context: any of these words means the remaining bare numbers
+    # in the message are goal targets (e.g. "give me a target for a 3.5 3.6 3.7",
+    # "is it realistic to finish with a 3.7"). We SWEEP leftover numbers whenever
+    # this context is present — not only when nothing was found yet — so a message
+    # listing several targets doesn't stop after the first.
+    intent_words = (
+        "need", "graduate", "reach", "target", "possible", "achievable",
+        "achieve", "goal", "want", "get a", "finish", "end with", "hit",
+        "realistic", "aim", "plan", "overall", "by semester", "by the",
+        "tak",           # roman urdu: "3.8 tak" (up to 3.8)
+        "pahunch",       # roman urdu: "pahunch sakta" (can reach)
+        "le lun", "le lu", "hasil",  # roman urdu: "le lun" (take/get), "hasil" (achieve)
+    )
+    if any(w in working for w in intent_words):
+        clauses = re.split(r'\band also\b|\balso\b|;', working)
+        for clause in clauses:
+            for v, sem in _scan_clause_for_goals(clause):
+                goals.append((v, sem))
 
     seen = set()
     unique = []
@@ -101,6 +109,10 @@ def _find_goals(message):
         if key not in seen:
             seen.add(key)
             unique.append((v, sem))
+
+    # Sort by GPA value (then semester) so a list like "3.5 3.6 3.7 3.8 3.9"
+    # is presented in natural ascending order regardless of match order.
+    unique.sort(key=lambda g: (g[0], g[1] if g[1] is not None else 99))
     return unique
 
 
