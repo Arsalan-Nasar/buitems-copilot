@@ -18,9 +18,37 @@ from skills.goal_planner import goal_planner
 from skills.schedule import schedule_summary
 from skills.alerts import alerts_summary
 from skills.trend_chart import trend_chart
-from knowledge.rag import answer_question
+from knowledge.rag import answer_question, _IDENTITY_ANSWER
+from core.authz import fetch_student, AuthorizationError
 
-DATA = json.load(open(DATA_FILE, encoding="utf-8"))
+# ---------------------------------------------------------------------------
+# DATA STORE
+# Today: one student loaded from a file, wrapped into a {id: record} database
+#        so the code already looks like the real portal (many students by id).
+# Later: replace _load_database() with a real portal/DB connection — nothing
+#        else in this file has to change.
+# ---------------------------------------------------------------------------
+def _load_database():
+    record = json.load(open(DATA_FILE, encoding="utf-8"))
+    return {str(record["student_id"]): record}
+
+
+DATABASE = _load_database()
+
+
+def get_logged_in_id():
+    """Return the id of the student who is logged in RIGHT NOW.
+
+    THIS IS THE PORTAL SLOT. Today it returns the single demo student's id.
+    When the BUITEMS portal is connected, this one function will instead read
+    the verified student id from the portal's session token — and every skill
+    stays protected automatically, because they all go through fetch_student().
+    """
+    # --- placeholder until portal integration ---
+    return next(iter(DATABASE.keys()))
+    # --- real version will be roughly: ---
+    # return read_verified_id_from_portal_session(request)
+
 app = Flask(__name__)
 
 
@@ -111,6 +139,32 @@ def build_reply(message):
     intent, language = route(message)
     text = message.lower()
 
+    # ---- SECURITY GUARDS FIRST (before any data access) ----
+    if intent == "identity":
+        reply = _IDENTITY_ANSWER
+        if language == "roman_urdu":
+            reply = to_roman_urdu(reply)
+        return md_to_card(reply, downloadable=False), language
+
+    if intent == "out_of_scope":
+        reply = ("I can only show you your own academic information — I can't change grades, "
+                 "contact anyone on your behalf, or access another student's data. "
+                 "Is there something about your own results, fees, or attendance I can help with?")
+        if language == "roman_urdu":
+            reply = to_roman_urdu(reply)
+        return md_to_card(reply, downloadable=False), language
+
+    # ---- AUTHORIZATION: fetch ONLY the logged-in student's data, once ----
+    # Every skill below receives this verified record. No skill can reach
+    # another student's data, because none of them touch the raw database.
+    logged_in_id = get_logged_in_id()
+    try:
+        DATA = fetch_student(DATABASE, logged_in_id)
+    except AuthorizationError:
+        return md_to_card("I couldn't verify your account. Please log in again "
+                          "through the portal.", downloadable=False), language
+
+    # GPA trend chart (image) — only reached once the message is known-safe
     if any(w in text for w in ["trend", "graph", "chart"]):
         path = trend_chart(DATA)
         if path:
@@ -128,11 +182,6 @@ def build_reply(message):
     elif intent == "goal": reply = goal_planner(DATA, message); dl=False
     elif intent == "schedule": reply = schedule_summary(DATA, message); dl=True
     elif intent == "alerts": reply = alerts_summary(DATA); dl=False
-    elif intent == "out_of_scope":
-        reply = ("I can only show you your own academic information — I can't change grades, "
-                 "contact anyone on your behalf, or access another student's data. "
-                 "Is there something about your own results, fees, or attendance I can help with?")
-        dl = False
     else: reply = answer_question(message); dl=False
 
     if language == "roman_urdu":
