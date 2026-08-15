@@ -11,23 +11,38 @@ INTENTS = {
     "report_card": [
         "result", "report card", "marks", "grades", "natija",
         "semester result", "report", "transcript",
+        # common misspellings
+        "resalt", "reslt", "rusult", "reult",
         # roman urdu
         "result dikhao", "natija dikhao", "mera result", "number kitne",
-        "kitne number", "marks kitne",
+        "kitne number", "marks kitne", "reslt dikhao", "resalt dikhao",
     ],
     "cgpa": [
         "cgpa", "gpa", "overall", "average", "progress", "trend",
+        # common misspellings
+        "cgpaa", "cgp", "gpaa",
+        # casual / indirect "how am i doing" style
+        "how am i doing", "how m i doing", "how i am doing", "how am i performing",
+        "doing well academically", "doing academically", "academic standing",
+        "how are my grades overall",
         # roman urdu
         "parhai kaisi", "kaisi chal", "kaisa chal", "overall kaisa",
         "meri progress", "kitna cgpa", "mera cgpa", "mera gpa",
     ],
     "fees": [
         "fee", "fees", "dues", "payment", "owe", "baqi", "jama", "challan",
+        # common misspellings
+        "feee", "fes", "feez",
         # roman urdu
         "fees kitni", "kitni fees", "baqi hai", "jama karni", "kitne paise",
     ],
     "attendance": [
         "attendance", "haziri", "present", "absent",
+        # common misspellings
+        "atendance", "attendence", "attndance", "attendnce", "hazri",
+        # indirect: the 75% rule to sit exams is an attendance question
+        "allowed to sit exam", "sit exams", "sit the exam", "eligible for exam",
+        "allowed to sit", "exam eligibility", "can i sit",
         # roman urdu
         "haziri kitni", "kitni haziri", "attendance kitni",
     ],
