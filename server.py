@@ -88,6 +88,34 @@ def _rate_limited(client_key):
     return False
 
 
+@app.after_request
+def _add_security_headers(response):
+    """Stamp every response with defensive HTTP security headers (defense in depth).
+
+    These instruct the browser to enforce extra protections behind our own
+    escaping/validation.
+    """
+    # Only load scripts/styles/images from our own site — a second wall against
+    # XSS. We explicitly allow the html2canvas CDN (used by the Save-as-PNG
+    # feature) and 'unsafe-inline' for the small inline script in guide.html.
+    # ('unsafe-inline' for scripts is a known trade-off; the real XSS defense is
+    #  our HTML escaping in md_to_card — this CSP is the secondary wall.)
+    response.headers["Content-Security-Policy"] = (
+        "default-src 'self'; "
+        "script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; "
+        "style-src 'self' 'unsafe-inline'; "
+        "img-src 'self' data:; "
+        "frame-ancestors 'none'; "
+        "base-uri 'self'; "
+        "form-action 'self'"
+    )
+    response.headers["X-Frame-Options"] = "DENY"                 # clickjacking defense
+    response.headers["X-Content-Type-Options"] = "nosniff"       # no MIME guessing
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    return response
+
+
 # ---------- markdown -> clean HTML cards ----------
 import html as _html_lib
 
