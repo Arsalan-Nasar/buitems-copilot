@@ -53,8 +53,11 @@ def semester_gpa(courses):
         gp = course_grade_point(c)
         if gp is None:
             return None          # semester not finished -> no GPA yet
-        total_points += gp * c["credit_hours"]
-        total_credits += c["credit_hours"]
+        ch = c.get("credit_hours")
+        if not ch:               # missing/zero credit hours -> skip, don't crash
+            continue
+        total_points += gp * ch
+        total_credits += ch
     if total_credits == 0:
         return None
     return round(total_points / total_credits, 2)
@@ -65,12 +68,15 @@ def cgpa(semesters):
     total_points = 0.0
     total_credits = 0
     for sem in semesters.values():
-        for c in sem["courses"]:
+        for c in sem.get("courses", []):
             gp = course_grade_point(c)
             if gp is None:
                 continue          # skip incomplete courses
-            total_points += gp * c["credit_hours"]
-            total_credits += c["credit_hours"]
+            ch = c.get("credit_hours")
+            if not ch:            # missing/zero credit hours -> skip safely
+                continue
+            total_points += gp * ch
+            total_credits += ch
     if total_credits == 0:
         return None
     return round(total_points / total_credits, 2)

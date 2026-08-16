@@ -16,13 +16,13 @@ def attendance_summary(data, message):
 
     warnings = []
     for r in records:
-        pct = round(r["present"] / r["total"] * 100) if r["total"] else 0
+        pct = round(r.get("present", 0) / r["total"] * 100) if r.get("total") else 0
         if pct >= THRESHOLD:
             status = "OK"
         else:
             status = "Low"
-            warnings.append((r["title"], pct))
-        lines.append(f"| {r['title']} | {r['present']} | {r['total']} | {pct}% | {status} |")
+            warnings.append((r.get("title", r.get("code", "a course")), pct))
+        lines.append(f"| {r.get('title', r.get('code','Course'))} | {r.get('present', 0)} | {r.get('total', 0)} | {pct}% | {status} |")
 
     lines.append("")
     if warnings:

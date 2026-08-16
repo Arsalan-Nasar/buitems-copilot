@@ -10,8 +10,8 @@ def _find_course(data, text):
     text = text.lower()
     for sem in data["semesters"].values():
         for c in sem["courses"]:
-            words = c["title"].lower().split()
-            if c["code"].lower().replace(" ", "") in text.replace(" ", ""):
+            words = c.get("title", "").lower().split()
+            if c.get("code", "").lower().replace(" ", "") in text.replace(" ", ""):
                 return sem, c
             if any(w in text for w in words if len(w) > 3):
                 return sem, c
@@ -35,7 +35,7 @@ def whatif(data, message):
         return f"The final is out of 50, so {imagined_final} isn't possible. Try a number up to 50."
 
     # compute the hypothetical result
-    total = course["mid"] + imagined_final + course["sessional"]
+    total = (course.get("mid") or 0) + imagined_final + (course.get("sessional") or 0)
     grade = marks_to_grade(total)
 
     # build a temporary copy of the semester with this final filled in, to preview GPA

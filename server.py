@@ -20,6 +20,7 @@ from skills.alerts import alerts_summary
 from skills.trend_chart import trend_chart
 from knowledge.rag import answer_question, _IDENTITY_ANSWER
 from core.authz import fetch_student, AuthorizationError
+from core.normalize import normalize_student
 
 # ---------------------------------------------------------------------------
 # DATA STORE
@@ -160,6 +161,7 @@ def build_reply(message):
     logged_in_id = get_logged_in_id()
     try:
         DATA = fetch_student(DATABASE, logged_in_id)
+        DATA = normalize_student(DATA)   # guarantee a safe, complete shape
     except AuthorizationError:
         return md_to_card("I couldn't verify your account. Please log in again "
                           "through the portal.", downloadable=False), language

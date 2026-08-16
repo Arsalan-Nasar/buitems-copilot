@@ -39,11 +39,11 @@ def report_card(data, message):
         tot = total_marks(c)
         if tot is None:
             final_str = "Not yet" if c.get("final") is None else c.get("final")
-            lines.append(f"| {c['title']} | {c['mid']} | {final_str} | {c['sessional']} | Waiting | — |")
+            lines.append(f"| {c.get('title', c.get('code','Course'))} | {c.get('mid','—')} | {final_str} | {c.get('sessional','—')} | Waiting | — |")
             pending += 1
         else:
             grade = marks_to_grade(tot)
-            lines.append(f"| {c['title']} | {c['mid']} | {c['final']} | {c['sessional']} | {tot} | {grade} |")
+            lines.append(f"| {c.get('title', c.get('code','Course'))} | {c.get('mid','—')} | {c.get('final','—')} | {c.get('sessional','—')} | {tot} | {grade} |")
 
     lines.append("")
     gpa = semester_gpa(s["courses"])

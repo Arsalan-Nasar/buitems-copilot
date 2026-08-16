@@ -12,13 +12,13 @@ def get_alerts(data):
 
     # pending fees
     fees = data.get("fees", [])
-    pending = sum(f["total"] - f["paid"] for f in fees)
+    pending = sum((f.get("total") or 0) - (f.get("paid") or 0) for f in fees)
     if pending > 0:
         alerts.append(f"You still need to pay **Rs {pending:,}** in fees. Please pay before the due date.")
 
     # low attendance
     for r in data.get("attendance", []):
-        pct = round(r["present"] / r["total"] * 100) if r["total"] else 0
+        pct = round(r.get("present", 0) / r["total"] * 100) if r.get("total") else 0
         if pct < ATT_THRESHOLD:
             alerts.append(f"Your attendance in **{r['title']}** is **{pct}%** — below {ATT_THRESHOLD}%. Try not to miss classes.")
 
@@ -33,9 +33,9 @@ def get_alerts(data):
 def at_a_glance(data):
     overall = cgpa(data["semesters"])
     fees = data.get("fees", [])
-    pending = sum(f["total"] - f["paid"] for f in fees)
+    pending = sum((f.get("total") or 0) - (f.get("paid") or 0) for f in fees)
     att = data.get("attendance", [])
-    low = min((round(r["present"]/r["total"]*100) for r in att if r["total"]), default=None)
+    low = min((round(r.get("present",0)/r["total"]*100) for r in att if r.get("total")), default=None)
 
     parts = []
     if overall is not None:

@@ -8,8 +8,8 @@ DAYS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sun
 def _course_title(data, code):
     for sem in data["semesters"].values():
         for c in sem["courses"]:
-            if c["code"] == code:
-                return c["title"]
+            if c.get("code") == code:
+                return c.get("title", c.get("code", "Course"))
     return code
 
 

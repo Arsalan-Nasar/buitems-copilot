@@ -10,9 +10,9 @@ def _find_course(data, text):
     text = text.lower()
     for sem in data["semesters"].values():
         for c in sem["courses"]:
-            if c["code"].lower().replace(" ", "") in text.replace(" ", ""):
+            if c.get("code", "").lower().replace(" ", "") in text.replace(" ", ""):
                 return c
-            if any(w in text for w in c["title"].lower().split() if len(w) > 3):
+            if any(w in text for w in c.get("title", "").lower().split() if len(w) > 3):
                 return c
     return None
 
@@ -38,11 +38,11 @@ def predictor(data, message):
     grade = _find_grade(message) or "B"   # default target if none named
     target_total = GRADE_MIN.get(grade)
 
-    have = course["mid"] + course["sessional"]          # marks already secured
+    have = (course.get("mid") or 0) + (course.get("sessional") or 0)          # marks already secured
     needed_final = target_total - have                  # final needed for the target
 
     lines = [f"**Grade Predictor — {course['title']}**", ""]
-    lines.append(f"You already have **{have}/50** secured (Mid {course['mid']} + Sessional {course['sessional']}).")
+    lines.append(f"You already have **{have}/50** secured (Mid {course.get('mid') or 0} + Sessional {course.get('sessional') or 0}).")
     lines.append(f"Target grade: **{grade}** (needs {target_total}/100 total).")
     lines.append("")
 
