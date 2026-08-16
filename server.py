@@ -267,7 +267,8 @@ def build_reply(message):
     else: reply = answer_question(message); dl=False
 
     if language == "roman_urdu":
-        reply = to_roman_urdu(reply)
+        # pass the student's name so it gets masked before going to Groq
+        reply = to_roman_urdu(reply, student_name=DATA.get("name"))
 
     return md_to_card(reply, downloadable=dl), language
 
