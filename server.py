@@ -21,6 +21,7 @@ from skills.trend_chart import trend_chart
 from knowledge.rag import answer_question, _IDENTITY_ANSWER
 from core.authz import fetch_student, AuthorizationError
 from core.normalize import normalize_student
+from core.audit import log_event
 
 # ---------------------------------------------------------------------------
 # DATA STORE
@@ -219,15 +220,19 @@ def md_to_card(md, downloadable=False):
 def build_reply(message):
     intent, language = route(message)
     text = message.lower()
+    logged_in_id = get_logged_in_id()
 
     # ---- SECURITY GUARDS FIRST (before any data access) ----
     if intent == "identity":
+        # identity/injection attempts are security events — record them as blocked
+        log_event(logged_in_id, intent, "blocked", message=message)
         reply = _IDENTITY_ANSWER
         if language == "roman_urdu":
             reply = to_roman_urdu(reply)
         return md_to_card(reply, downloadable=False), language
 
     if intent == "out_of_scope":
+        log_event(logged_in_id, intent, "refused", message=message)
         reply = ("I can only show you your own academic information — I can't change grades, "
                  "contact anyone on your behalf, or access another student's data. "
                  "Is there something about your own results, fees, or attendance I can help with?")
@@ -238,11 +243,11 @@ def build_reply(message):
     # ---- AUTHORIZATION: fetch ONLY the logged-in student's data, once ----
     # Every skill below receives this verified record. No skill can reach
     # another student's data, because none of them touch the raw database.
-    logged_in_id = get_logged_in_id()
     try:
         DATA = fetch_student(DATABASE, logged_in_id)
         DATA = normalize_student(DATA)   # guarantee a safe, complete shape
     except AuthorizationError:
+        log_event(logged_in_id, intent, "error", message=message, extra={"reason": "auth_failed"})
         return md_to_card("I couldn't verify your account. Please log in again "
                           "through the portal.", downloadable=False), language
 
@@ -252,7 +257,9 @@ def build_reply(message):
         if path:
             shutil.copy(path, os.path.join("static", "gpa_trend.png"))
             md = "Your GPA Trend\n\n![GPA Trend](/static/gpa_trend.png)"
+            log_event(logged_in_id, "trend", "answered", message=message)
             return md_to_card(md, downloadable=True), "english"
+        log_event(logged_in_id, "trend", "answered", message=message, extra={"note": "insufficient_data"})
         return "I need at least two completed semesters to draw your GPA trend.", "english"
 
     if intent == "report_card": reply = report_card(DATA, message); dl=True
@@ -265,6 +272,9 @@ def build_reply(message):
     elif intent == "schedule": reply = schedule_summary(DATA, message); dl=True
     elif intent == "alerts": reply = alerts_summary(DATA); dl=False
     else: reply = answer_question(message); dl=False
+
+    # record the successful answer (intent + outcome only, never the data)
+    log_event(logged_in_id, intent, "answered", message=message)
 
     if language == "roman_urdu":
         # pass the student's name so it gets masked before going to Groq
@@ -287,6 +297,7 @@ def chat():
     # per-client rate limit (uses IP; behind a proxy this reads X-Forwarded-For)
     client_key = request.headers.get("X-Forwarded-For", request.remote_addr) or "unknown"
     if _rate_limited(client_key):
+        log_event(None, "rate_limit", "rate_limited", extra={"client": "hidden"})
         return jsonify({"html": "You're sending messages too quickly. "
                                 "Please wait a few seconds and try again."}), 429
 

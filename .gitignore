@@ -6,3 +6,4 @@ data/charts/
 *.whl
 *.pyc
 static/gpa_trend.png
+logs/
