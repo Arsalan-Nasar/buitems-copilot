@@ -52,6 +52,41 @@ def get_logged_in_id():
 
 app = Flask(__name__)
 
+# ---------------------------------------------------------------------------
+# DoS / ABUSE PROTECTION (application layer)
+# ---------------------------------------------------------------------------
+# NOTE: This stops CHEAP abuse — oversized payloads and simple request floods.
+# It does NOT replace infrastructure-level DDoS protection (Cloudflare, a
+# reverse proxy, or the university firewall), which must sit in front of this
+# app in production. Code alone cannot stop a large distributed attack.
+
+# 1) Cap the size of any incoming request body (reject giant payloads early).
+MAX_MESSAGE_CHARS = 2000          # a real student question is never this long
+app.config["MAX_CONTENT_LENGTH"] = 64 * 1024   # 64 KB hard cap on request body
+
+# 2) Simple in-memory per-client rate limit.
+#    (For a single-server deployment this is fine; a multi-server deployment
+#    would use Redis instead. Flagged for the BUITEMS deployment.)
+import time as _time
+from collections import deque
+
+_RATE_MAX = 20                    # max requests...
+_RATE_WINDOW = 10                 # ...per this many seconds, per client
+_hits = {}                        # client_key -> deque[timestamps]
+
+
+def _rate_limited(client_key):
+    """Return True if this client has exceeded the allowed request rate."""
+    now = _time.time()
+    dq = _hits.setdefault(client_key, deque())
+    # drop timestamps older than the window
+    while dq and now - dq[0] > _RATE_WINDOW:
+        dq.popleft()
+    if len(dq) >= _RATE_MAX:
+        return True
+    dq.append(now)
+    return False
+
 
 # ---------- markdown -> clean HTML cards ----------
 def md_to_card(md, downloadable=False):
@@ -203,18 +238,31 @@ def guide():
 
 @app.route("/chat", methods=["POST"])
 def chat():
-    data = request.get_json()
+    # per-client rate limit (uses IP; behind a proxy this reads X-Forwarded-For)
+    client_key = request.headers.get("X-Forwarded-For", request.remote_addr) or "unknown"
+    if _rate_limited(client_key):
+        return jsonify({"html": "You're sending messages too quickly. "
+                                "Please wait a few seconds and try again."}), 429
+
+    data = request.get_json(silent=True)
     message = (data or {}).get("message", "")
-    if not message.strip():
+    if not isinstance(message, str) or not message.strip():
         return jsonify({"html": "Please type a question."})
+
+    # cap message length (defends against oversized single payloads)
+    if len(message) > MAX_MESSAGE_CHARS:
+        message = message[:MAX_MESSAGE_CHARS]
+
     try:
         html, _ = build_reply(message)
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
+    except Exception:
+        # Never leak internal error detail to the user or logs shown to them.
+        # (Log to a proper server-side logger in production, not stdout.)
         html = "Sorry, something went wrong while processing that."
     return jsonify({"html": html})
 
 
 if __name__ == "__main__":
-    app.run(debug=True, port=5000)
+    # debug=False for production. Never ship with debug=True — it exposes an
+    # interactive debugger that can run arbitrary code.
+    app.run(debug=False, port=5000)
