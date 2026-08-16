@@ -89,6 +89,16 @@ def _rate_limited(client_key):
 
 
 # ---------- markdown -> clean HTML cards ----------
+import html as _html_lib
+
+
+def _esc(value):
+    """Escape a data value so it can NEVER execute as HTML/script in the browser.
+    This is the XSS defense: '<script>' becomes harmless display text '&lt;script&gt;'.
+    """
+    return _html_lib.escape(str(value), quote=True)
+
+
 def md_to_card(md, downloadable=False):
     """Turn a skill's markdown (title + table/lines) into a clean horizontal-table card."""
     lines = [l for l in md.split("\n")]
@@ -107,21 +117,21 @@ def md_to_card(md, downloadable=False):
         out.append("<tr>")
         for i, h in enumerate(header):
             cls = "" if i == 0 else ' class="c"'
-            out.append(f"<th{cls}>{h}</th>")
+            out.append(f"<th{cls}>{_esc(h)}</th>")
         out.append("</tr>")
         for row in body:
             out.append("<tr>")
             for i, v in enumerate(row):
                 h = header[i].lower() if i < len(header) else ""
                 if i == 0:
-                    out.append(f'<td class="subj">{v}</td>')
+                    out.append(f'<td class="subj">{_esc(v)}</td>')
                 elif "grade" in h:
-                    cell = f'<span class="gd">{v}</span>' if v not in ("", "—") else "—"
+                    cell = f'<span class="gd">{_esc(v)}</span>' if v not in ("", "—") else "—"
                     out.append(f'<td class="c">{cell}</td>')
                 elif "total" in h:
-                    out.append(f'<td class="tot">{v}</td>')
+                    out.append(f'<td class="tot">{_esc(v)}</td>')
                 else:
-                    out.append(f'<td class="c">{v}</td>')
+                    out.append(f'<td class="c">{_esc(v)}</td>')
             out.append("</tr>")
         out.append("</table>")
         table_rows = []
@@ -133,7 +143,10 @@ def md_to_card(md, downloadable=False):
             continue
         img = re.search(r"!\[.*?\]\((.*?)\)", s)
         if img:
-            html.append(f'<img src="{img.group(1)}" alt="GPA Trend">')
+            src = img.group(1)
+            # only allow internal static image paths — never arbitrary/JS URLs
+            if src.startswith("/static/") and "\"" not in src and ">" not in src:
+                html.append(f'<img src="{_esc(src)}" alt="GPA Trend">')
             continue
         if s.startswith("|"):
             cells = [c.strip() for c in s.split("|")[1:-1]]
@@ -148,7 +161,7 @@ def md_to_card(md, downloadable=False):
                 in_table = False
         clean = s.replace("**", "").replace("_", "")
         if not title_done and ("**" in line or clean.startswith("Your")):
-            html.append(f'<div class="rc-title">{clean}</div>')
+            html.append(f'<div class="rc-title">{_esc(clean)}</div>')
             title_done = True
             continue
 
@@ -157,10 +170,14 @@ def md_to_card(md, downloadable=False):
         if strict_match and not is_bullet:
             lbl = strict_match.group(1).strip()
             val = strict_match.group(2)
-            html.append(f'<div class="rc-foot"><span class="lbl">{lbl}</span><span class="val">{val}</span></div>')
+            html.append(f'<div class="rc-foot"><span class="lbl">{_esc(lbl)}</span><span class="val">{_esc(val)}</span></div>')
             continue
 
-        bold = re.sub(r"\*\*(.+?)\*\*", r"<strong>\1</strong>", line)
+        # Escape the raw text FIRST (neutralizes any data-borne HTML), THEN apply
+        # our own **bold** -> <strong> formatting so our tags survive but injected
+        # tags do not.
+        safe_line = _esc(line)
+        bold = re.sub(r"\*\*(.+?)\*\*", r"<strong>\1</strong>", safe_line)
         html.append(f'<div style="font-size:13.5px;line-height:1.55;margin:3px 0;">{bold}</div>')
 
     if in_table:
