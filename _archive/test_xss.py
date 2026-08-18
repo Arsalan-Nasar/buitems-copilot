@@ -15,7 +15,7 @@ import os
 import sys
 import types
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 if "groq" not in sys.modules:
     sys.modules["groq"] = types.SimpleNamespace(Groq=lambda **k: None)
@@ -96,7 +96,7 @@ def run():
 
     # sanity: normal formatting (our own <strong>, <table>) must still work
     import json
-    real = normalize_student(json.load(open("data/student.json", encoding="utf-8")))
+    real = normalize_student(json.load(open(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "student.json"), encoding="utf-8")))
     normal = server.md_to_card(cgpa_dashboard(real, "cgpa"))
     results.append(("normal CGPA value still displays", "3.28" in normal))
     results.append(("our own <strong> formatting still works", "<strong>" in normal))

@@ -1,9 +1,17 @@
+# secrets
 .env
+
+# python cache
 __pycache__/
 */__pycache__/
-.gradio/
-data/charts/
-*.whl
 *.pyc
-static/gpa_trend.png
+
+# logs (never commit audit logs)
 logs/
+
+# generated chart images
+static/gpa_trend.png
+data/charts/
+
+# build artifacts
+*.whl

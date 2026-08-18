@@ -14,7 +14,7 @@ import os
 import sys
 import types
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 if "groq" not in sys.modules:
     sys.modules["groq"] = types.SimpleNamespace(Groq=lambda **k: None)

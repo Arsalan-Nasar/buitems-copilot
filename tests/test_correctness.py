@@ -14,9 +14,9 @@ import json
 import os
 import sys
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-DATA = json.load(open("data/student.json", encoding="utf-8"))
+DATA = json.load(open(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "student.json"), encoding="utf-8"))
 
 
 # ---- independent re-implementations (deliberately NOT importing the app's) ----

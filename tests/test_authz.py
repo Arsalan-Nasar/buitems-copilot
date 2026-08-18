@@ -19,14 +19,14 @@ import json
 import os
 import sys
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
 # ---------------------------------------------------------------------------
 # Build a fake "portal database" of MANY students (this mimics real integration).
 # ---------------------------------------------------------------------------
 def build_fake_portal():
-    me = json.load(open("data/student.json", encoding="utf-8"))
+    me = json.load(open(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "student.json"), encoding="utf-8"))
     me_id = me["student_id"]
 
     # a second student — their data is PRIVATE and must never leak to 'me'
