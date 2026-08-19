@@ -12,6 +12,9 @@
 import html as _html
 
 
+EM_DASH = "\u2014"  # — as a plain constant, so it never sits inside an f-string expr
+
+
 def _esc(v):
     return _html.escape(str(v), quote=True)
 
@@ -112,12 +115,12 @@ def _semester_tables(semesters):
     for s in semesters:
         rows = ""
         for c in s["courses"]:
-            total = c["total"] if c["total"] is not None else "\u2014"
-            grade = c["grade"] if c["grade"] is not None else "\u2014"
+            total = c["total"] if c["total"] is not None else EM_DASH
+            grade = c["grade"] if c["grade"] is not None else EM_DASH
             rows += (f'<tr><td class="l">{_esc(c["title"])}</td>'
-                     f'<td>{_esc(c["mid"]) if c["mid"] is not None else "\u2014"}</td>'
-                     f'<td>{_esc(c["final"]) if c["final"] is not None else "\u2014"}</td>'
-                     f'<td>{_esc(c["sessional"]) if c["sessional"] is not None else "\u2014"}</td>'
+                     f'<td>{_esc(c["mid"]) if c["mid"] is not None else EM_DASH}</td>'
+                     f'<td>{_esc(c["final"]) if c["final"] is not None else EM_DASH}</td>'
+                     f'<td>{_esc(c["sessional"]) if c["sessional"] is not None else EM_DASH}</td>'
                      f'<td>{_esc(total)}</td>'
                      f'<td><span class="grade-chip">{_esc(grade)}</span></td></tr>')
         gpa_txt = s["gpa"] if s["gpa"] is not None else "In progress"
@@ -161,7 +164,7 @@ def render_report(report, intelligence):
         cls = "att-ok" if (pct is not None and pct >= report["attendance"]["threshold"]) else "att-low"
         att_rows += (f'<tr><td class="l">{_esc(c["title"])}</td>'
                      f'<td>{_esc(c["present"])}/{_esc(c["total"])}</td>'
-                     f'<td class="{cls}">{_esc(pct) if pct is not None else "\u2014"}%</td></tr>')
+                     f'<td class="{cls}">{_esc(pct) if pct is not None else EM_DASH}%</td></tr>')
 
     # recovery notes
     rec = ""
