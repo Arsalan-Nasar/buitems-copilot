@@ -1,35 +1,30 @@
-# server.py — Flask backend: serves the premium interface + formats replies as clean cards.
+# server.py — BUITEMS Copilot: the offline Academic Report generator.
+#
+# PLAIN ENGLISH:
+# This is the "enhancement tab" backend. When a student opens the tab, the portal
+# calls this server, which:
+#   1. identifies the logged-in student (from the portal session — slot below),
+#   2. fetches ONLY that student's data through the authorization layer,
+#   3. normalizes it (crash-proof), assembles the report, adds the intelligence
+#      layer, and renders the premium HTML — instantly, no chat, no typing.
+#
+# Fully offline: no LLM, no external calls. Nothing leaves the university network.
+
 import json
-import os
-import re
-import shutil
-from flask import Flask, render_template, request, jsonify
+import time
+from collections import deque
+
+from flask import Flask, request, Response, jsonify
 
 from config import DATA_FILE
-from core.router import route
-from core.roman_urdu import to_roman_urdu
-from skills.report_card import report_card
-from skills.cgpa_dashboard import cgpa_dashboard
-from skills.fees import fees_summary
-from skills.attendance import attendance_summary
-from skills.whatif import whatif
-from skills.predictor import predictor
-from skills.goal_planner import goal_planner
-from skills.schedule import schedule_summary
-from skills.alerts import alerts_summary
-from skills.trend_chart import trend_chart
-from knowledge.rag import answer_question, _IDENTITY_ANSWER
 from core.authz import fetch_student, AuthorizationError
 from core.normalize import normalize_student
 from core.audit import log_event
+from report.assemble import assemble_report
+from report.intelligence import build_intelligence
+from report.render import render_report
 
-# ---------------------------------------------------------------------------
-# DATA STORE
-# Today: one student loaded from a file, wrapped into a {id: record} database
-#        so the code already looks like the real portal (many students by id).
-# Later: replace _load_database() with a real portal/DB connection — nothing
-#        else in this file has to change.
-# ---------------------------------------------------------------------------
+
 def _load_database():
     record = json.load(open(DATA_FILE, encoding="utf-8"))
     return {str(record["student_id"]): record}
@@ -41,46 +36,27 @@ DATABASE = _load_database()
 def get_logged_in_id():
     """Return the id of the student who is logged in RIGHT NOW.
 
-    THIS IS THE PORTAL SLOT. Today it returns the single demo student's id.
-    When the BUITEMS portal is connected, this one function will instead read
-    the verified student id from the portal's session token — and every skill
-    stays protected automatically, because they all go through fetch_student().
+    THIS IS THE PORTAL SLOT. Today it returns the demo student's id. When the
+    BUITEMS portal is connected, this reads the verified student id from the
+    portal's session token — and the whole report stays scoped to that student
+    automatically, because everything flows through fetch_student().
     """
-    # --- placeholder until portal integration ---
     return next(iter(DATABASE.keys()))
-    # --- real version will be roughly: ---
+    # real version, roughly:
     # return read_verified_id_from_portal_session(request)
+
 
 app = Flask(__name__)
 
-# ---------------------------------------------------------------------------
-# DoS / ABUSE PROTECTION (application layer)
-# ---------------------------------------------------------------------------
-# NOTE: This stops CHEAP abuse — oversized payloads and simple request floods.
-# It does NOT replace infrastructure-level DDoS protection (Cloudflare, a
-# reverse proxy, or the university firewall), which must sit in front of this
-# app in production. Code alone cannot stop a large distributed attack.
-
-# 1) Cap the size of any incoming request body (reject giant payloads early).
-MAX_MESSAGE_CHARS = 2000          # a real student question is never this long
-app.config["MAX_CONTENT_LENGTH"] = 64 * 1024   # 64 KB hard cap on request body
-
-# 2) Simple in-memory per-client rate limit.
-#    (For a single-server deployment this is fine; a multi-server deployment
-#    would use Redis instead. Flagged for the BUITEMS deployment.)
-import time as _time
-from collections import deque
-
-_RATE_MAX = 20                    # max requests...
-_RATE_WINDOW = 10                 # ...per this many seconds, per client
-_hits = {}                        # client_key -> deque[timestamps]
+app.config["MAX_CONTENT_LENGTH"] = 64 * 1024
+_RATE_MAX = 30
+_RATE_WINDOW = 10
+_hits = {}
 
 
 def _rate_limited(client_key):
-    """Return True if this client has exceeded the allowed request rate."""
-    now = _time.time()
+    now = time.time()
     dq = _hits.setdefault(client_key, deque())
-    # drop timestamps older than the window
     while dq and now - dq[0] > _RATE_WINDOW:
         dq.popleft()
     if len(dq) >= _RATE_MAX:
@@ -90,236 +66,66 @@ def _rate_limited(client_key):
 
 
 @app.after_request
-def _add_security_headers(response):
-    """Stamp every response with defensive HTTP security headers (defense in depth).
-
-    These instruct the browser to enforce extra protections behind our own
-    escaping/validation.
-    """
-    # Only load scripts/styles/images from our own site — a second wall against
-    # XSS. We explicitly allow the html2canvas CDN (used by the Save-as-PNG
-    # feature) and 'unsafe-inline' for the small inline script in guide.html.
-    # ('unsafe-inline' for scripts is a known trade-off; the real XSS defense is
-    #  our HTML escaping in md_to_card — this CSP is the secondary wall.)
+def _security_headers(response):
+    """Defensive HTTP headers on every response (defense in depth)."""
     response.headers["Content-Security-Policy"] = (
-        "default-src 'self'; "
-        "script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; "
-        "style-src 'self' 'unsafe-inline'; "
-        "img-src 'self' data:; "
-        "frame-ancestors 'none'; "
-        "base-uri 'self'; "
-        "form-action 'self'"
+        "default-src 'self'; style-src 'self' 'unsafe-inline'; "
+        "font-src 'self' https://fonts.gstatic.com; "
+        "img-src 'self' data:; frame-ancestors 'none'; base-uri 'self'"
     )
-    response.headers["X-Frame-Options"] = "DENY"                 # clickjacking defense
-    response.headers["X-Content-Type-Options"] = "nosniff"       # no MIME guessing
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
     response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
     return response
 
 
-# ---------- markdown -> clean HTML cards ----------
-import html as _html_lib
-
-
-def _esc(value):
-    """Escape a data value so it can NEVER execute as HTML/script in the browser.
-    This is the XSS defense: '<script>' becomes harmless display text '&lt;script&gt;'.
-    """
-    return _html_lib.escape(str(value), quote=True)
-
-
-def md_to_card(md, downloadable=False):
-    """Turn a skill's markdown (title + table/lines) into a clean horizontal-table card."""
-    lines = [l for l in md.split("\n")]
-    html = ['<div class="result-card">']
-    table_rows = []
-    in_table = False
-    title_done = False
-
-    def flush_table():
-        nonlocal table_rows
-        if not table_rows:
-            return ""
-        header = table_rows[0]
-        body = table_rows[1:]
-        out = ['<table class="rtable">']
-        out.append("<tr>")
-        for i, h in enumerate(header):
-            cls = "" if i == 0 else ' class="c"'
-            out.append(f"<th{cls}>{_esc(h)}</th>")
-        out.append("</tr>")
-        for row in body:
-            out.append("<tr>")
-            for i, v in enumerate(row):
-                h = header[i].lower() if i < len(header) else ""
-                if i == 0:
-                    out.append(f'<td class="subj">{_esc(v)}</td>')
-                elif "grade" in h:
-                    cell = f'<span class="gd">{_esc(v)}</span>' if v not in ("", "—") else "—"
-                    out.append(f'<td class="c">{cell}</td>')
-                elif "total" in h:
-                    out.append(f'<td class="tot">{_esc(v)}</td>')
-                else:
-                    out.append(f'<td class="c">{_esc(v)}</td>')
-            out.append("</tr>")
-        out.append("</table>")
-        table_rows = []
-        return "".join(out)
-
-    for line in lines:
-        s = line.strip()
-        if not s:
-            continue
-        img = re.search(r"!\[.*?\]\((.*?)\)", s)
-        if img:
-            src = img.group(1)
-            # only allow internal static image paths — never arbitrary/JS URLs
-            if src.startswith("/static/") and "\"" not in src and ">" not in src:
-                html.append(f'<img src="{_esc(src)}" alt="GPA Trend">')
-            continue
-        if s.startswith("|"):
-            cells = [c.strip() for c in s.split("|")[1:-1]]
-            if all(re.match(r"^-+$", c) for c in cells):
-                continue
-            in_table = True
-            table_rows.append(cells)
-            continue
-        else:
-            if in_table:
-                html.append(flush_table())
-                in_table = False
-        clean = s.replace("**", "").replace("_", "")
-        if not title_done and ("**" in line or clean.startswith("Your")):
-            html.append(f'<div class="rc-title">{_esc(clean)}</div>')
-            title_done = True
-            continue
-
-        is_bullet = s.startswith("-") or s.startswith("*")
-        strict_match = re.match(r'^([^:]{2,60}(?:GPA|CGPA)[^:]{0,20}):\s*(\d+\.?\d*)\s*$', clean)
-        if strict_match and not is_bullet:
-            lbl = strict_match.group(1).strip()
-            val = strict_match.group(2)
-            html.append(f'<div class="rc-foot"><span class="lbl">{_esc(lbl)}</span><span class="val">{_esc(val)}</span></div>')
-            continue
-
-        # Escape the raw text FIRST (neutralizes any data-borne HTML), THEN apply
-        # our own **bold** -> <strong> formatting so our tags survive but injected
-        # tags do not.
-        safe_line = _esc(line)
-        bold = re.sub(r"\*\*(.+?)\*\*", r"<strong>\1</strong>", safe_line)
-        html.append(f'<div style="font-size:13.5px;line-height:1.55;margin:3px 0;">{bold}</div>')
-
-    if in_table:
-        html.append(flush_table())
-    if downloadable:
-        html.append('<div class="dl"><button class="dl-png">⬇ Save as PNG</button></div>')
-    html.append("</div>")
-    return "".join(html)
-
-
-def build_reply(message):
-    intent, language = route(message)
-    text = message.lower()
+def generate_report_html():
+    """The core flow: authorize -> normalize -> assemble -> intelligence -> render.
+    Returns (html, status_code). Never leaks internal errors to the user."""
     logged_in_id = get_logged_in_id()
-
-    # ---- SECURITY GUARDS FIRST (before any data access) ----
-    if intent == "identity":
-        # identity/injection attempts are security events — record them as blocked
-        log_event(logged_in_id, intent, "blocked", message=message)
-        reply = _IDENTITY_ANSWER
-        if language == "roman_urdu":
-            reply = to_roman_urdu(reply)
-        return md_to_card(reply, downloadable=False), language
-
-    if intent == "out_of_scope":
-        log_event(logged_in_id, intent, "refused", message=message)
-        reply = ("I can only show you your own academic information — I can't change grades, "
-                 "contact anyone on your behalf, or access another student's data. "
-                 "Is there something about your own results, fees, or attendance I can help with?")
-        if language == "roman_urdu":
-            reply = to_roman_urdu(reply)
-        return md_to_card(reply, downloadable=False), language
-
-    # ---- AUTHORIZATION: fetch ONLY the logged-in student's data, once ----
-    # Every skill below receives this verified record. No skill can reach
-    # another student's data, because none of them touch the raw database.
     try:
-        DATA = fetch_student(DATABASE, logged_in_id)
-        DATA = normalize_student(DATA)   # guarantee a safe, complete shape
+        data = fetch_student(DATABASE, logged_in_id)
     except AuthorizationError:
-        log_event(logged_in_id, intent, "error", message=message, extra={"reason": "auth_failed"})
-        return md_to_card("I couldn't verify your account. Please log in again "
-                          "through the portal.", downloadable=False), language
+        log_event(logged_in_id, "report", "error", extra={"reason": "auth_failed"})
+        return ("<h1>We couldn't verify your account.</h1>"
+                "<p>Please log in again through the portal.</p>", 403)
 
-    # GPA trend chart (image) — only reached once the message is known-safe
-    if any(w in text for w in ["trend", "graph", "chart"]):
-        path = trend_chart(DATA)
-        if path:
-            shutil.copy(path, os.path.join("static", "gpa_trend.png"))
-            md = "Your GPA Trend\n\n![GPA Trend](/static/gpa_trend.png)"
-            log_event(logged_in_id, "trend", "answered", message=message)
-            return md_to_card(md, downloadable=True), "english"
-        log_event(logged_in_id, "trend", "answered", message=message, extra={"note": "insufficient_data"})
-        return "I need at least two completed semesters to draw your GPA trend.", "english"
-
-    if intent == "report_card": reply = report_card(DATA, message); dl=True
-    elif intent == "cgpa": reply = cgpa_dashboard(DATA, message); dl=True
-    elif intent == "fees": reply = fees_summary(DATA, message); dl=True
-    elif intent == "attendance": reply = attendance_summary(DATA, message); dl=True
-    elif intent == "whatif": reply = whatif(DATA, message); dl=False
-    elif intent == "predictor": reply = predictor(DATA, message); dl=False
-    elif intent == "goal": reply = goal_planner(DATA, message); dl=False
-    elif intent == "schedule": reply = schedule_summary(DATA, message); dl=True
-    elif intent == "alerts": reply = alerts_summary(DATA); dl=False
-    else: reply = answer_question(message); dl=False
-
-    # record the successful answer (intent + outcome only, never the data)
-    log_event(logged_in_id, intent, "answered", message=message)
-
-    if language == "roman_urdu":
-        # pass the student's name so it gets masked before going to Groq
-        reply = to_roman_urdu(reply, student_name=DATA.get("name"))
-
-    return md_to_card(reply, downloadable=dl), language
+    try:
+        data = normalize_student(data)
+        report = assemble_report(data)
+        intel = build_intelligence(report)
+        html = render_report(report, intel)
+        log_event(logged_in_id, "report", "generated")
+        return (html, 200)
+    except Exception:
+        log_event(logged_in_id, "report", "error", extra={"reason": "render_failed"})
+        return ("<h1>Something went wrong generating your report.</h1>"
+                "<p>Please try again in a moment.</p>", 500)
 
 
-@app.route("/")
-def home():
-    return render_template("index.html")
-
-@app.route("/guide")
-def guide():
-    return render_template("guide.html")
-
-
-@app.route("/chat", methods=["POST"])
-def chat():
-    # per-client rate limit (uses IP; behind a proxy this reads X-Forwarded-For)
+@app.route("/report", methods=["GET"])
+def report():
+    """The enhancement-tab endpoint. Opening it auto-generates the report."""
     client_key = request.headers.get("X-Forwarded-For", request.remote_addr) or "unknown"
     if _rate_limited(client_key):
-        log_event(None, "rate_limit", "rate_limited", extra={"client": "hidden"})
-        return jsonify({"html": "You're sending messages too quickly. "
-                                "Please wait a few seconds and try again."}), 429
+        return Response("Too many requests. Please wait a few seconds.", status=429)
 
-    data = request.get_json(silent=True)
-    message = (data or {}).get("message", "")
-    if not isinstance(message, str) or not message.strip():
-        return jsonify({"html": "Please type a question."})
+    html, status = generate_report_html()
+    return Response(html, status=status, mimetype="text/html")
 
-    # cap message length (defends against oversized single payloads)
-    if len(message) > MAX_MESSAGE_CHARS:
-        message = message[:MAX_MESSAGE_CHARS]
 
-    try:
-        html, _ = build_reply(message)
-    except Exception:
-        # Never leak internal error detail to the user or logs shown to them.
-        # (Log to a proper server-side logger in production, not stdout.)
-        html = "Sorry, something went wrong while processing that."
-    return jsonify({"html": html})
+@app.route("/health", methods=["GET"])
+def health():
+    """Simple liveness check for the portal/ops (no student data)."""
+    return jsonify({"status": "ok"})
+
+
+@app.route("/", methods=["GET"])
+def index():
+    html, status = generate_report_html()
+    return Response(html, status=status, mimetype="text/html")
 
 
 if __name__ == "__main__":
-    # debug=False for production. Never ship with debug=True — it exposes an
-    # interactive debugger that can run arbitrary code.
     app.run(debug=False, port=5000)
