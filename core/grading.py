@@ -1,5 +1,22 @@
 # core/grading.py — THE math engine. Real BUITEMS scheme: Mid 25 + Final 50 + Sessional 25 = 100
 # Every feature uses these functions, so the numbers are always correct and consistent.
+#
+# ---------------------------------------------------------------------------
+# GRADING SCALE — VERIFIED against BUITEMS official policy (19 Aug 2026).
+# Source: BUITEMS official grade table (confirmed from the portal grading UI).
+#
+# Marks -> Grade (official bands):
+#     A  85-100 | A- 80-84 | B+ 75-79 | B 70-74 | B- 65-69
+#     C+ 61-64  | C  58-60 | C- 55-57 | D 50-54 | F 0-49
+#   (BUITEMS has NO "A+" grade — A is the top grade, starting at 85.)
+#
+# Grade -> Grade Point (standard 4.0 scale, confirmed used by BUITEMS):
+#     A 4.0 | A- 3.7 | B+ 3.3 | B 3.0 | B- 2.7
+#     C+ 2.3 | C 2.0 | C- 1.7 | D 1.0 | F 0.0
+#
+# If BUITEMS ever revises its policy, update ONLY the two mappings below
+# (marks_to_grade and grade_to_point) — everything else derives from them.
+# ---------------------------------------------------------------------------
 
 
 def total_marks(course):
