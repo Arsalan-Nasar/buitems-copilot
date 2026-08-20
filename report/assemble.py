@@ -131,14 +131,27 @@ def build_trend_section(data):
             points.append({"semester": sem_id,
                            "term": data["semesters"][sem_id].get("term", ""),
                            "gpa": _round2(gpa)})
-    # direction reading
+    # percentage change vs the previous semester (for high/low markers)
+    for i, p in enumerate(points):
+        if i == 0 or points[i-1]["gpa"] == 0:
+            p["change_pct"] = None
+        else:
+            prev = points[i-1]["gpa"]
+            p["change_pct"] = round((p["gpa"] - prev) / prev * 100, 1)
+
+    # direction reading (overall)
     direction = "flat"
     if len(points) >= 2:
         if points[-1]["gpa"] > points[0]["gpa"]:
             direction = "up"
         elif points[-1]["gpa"] < points[0]["gpa"]:
             direction = "down"
-    return {"points": points, "direction": direction}
+
+    # peak + lowest semester (nice summary stats)
+    best = max(points, key=lambda x: x["gpa"]) if points else None
+    low = min(points, key=lambda x: x["gpa"]) if points else None
+    return {"points": points, "direction": direction,
+            "best": best, "lowest": low}
 
 
 def assemble_report(data):

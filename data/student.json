@@ -2,35 +2,443 @@
   "student_id": "66435",
   "name": "Arsalan Khan Nasir",
   "program": "BS Information Technology",
-  "current_semester": 4,
+  "current_semester": 8,
+  "graduated": true,
   "semesters": {
-    "1": { "term": "Fall 2024", "courses": [
-      { "code": "CS 123", "title": "Applications of ICT", "credit_hours": 2, "mid": 20, "final": 42, "sessional": 21 },
-      { "code": "ENG 101", "title": "English Composition", "credit_hours": 3, "mid": 18, "final": 40, "sessional": 20 },
-      { "code": "MATH 101", "title": "Calculus I", "credit_hours": 3, "mid": 15, "final": 35, "sessional": 18 } ] },
-    "2": { "term": "Spring 2025", "courses": [
-      { "code": "CS 114", "title": "Programming Fundamentals", "credit_hours": 3, "mid": 14, "final": 30, "sessional": 17 },
-      { "code": "MATH 102", "title": "Calculus II", "credit_hours": 3, "mid": 16, "final": 33, "sessional": 19 },
-      { "code": "PHY 101", "title": "Physics", "credit_hours": 3, "mid": 22, "final": 45, "sessional": 23 } ] },
-    "3": { "term": "Fall 2025", "courses": [
-      { "code": "CS 212", "title": "Object Oriented Programming", "credit_hours": 3, "mid": 21, "final": 44, "sessional": 22 },
-      { "code": "IT 304", "title": "Information Security", "credit_hours": 3, "mid": 19, "final": 41, "sessional": 21 },
-      { "code": "MATH 111", "title": "Linear Algebra", "credit_hours": 3, "mid": 17, "final": 38, "sessional": 20 } ] },
-    "4": { "term": "Spring 2026", "courses": [
-      { "code": "CS 221", "title": "Data Structures", "credit_hours": 3, "mid": 20, "final": null, "sessional": 22 },
-      { "code": "CS 412", "title": "Artificial Intelligence", "credit_hours": 2, "mid": 18, "final": null, "sessional": 20 },
-      { "code": "HUM 201", "title": "Expository Writing", "credit_hours": 3, "mid": 16, "final": null, "sessional": 19 } ] }
+    "1": {
+      "term": "Fall 2022",
+      "courses": [
+        {
+          "code": "CS 101",
+          "title": "Introduction to Computing",
+          "credit_hours": 3,
+          "mid": 22,
+          "final": 44,
+          "sessional": 22
+        },
+        {
+          "code": "ENG 101",
+          "title": "English Composition",
+          "credit_hours": 3,
+          "mid": 20,
+          "final": 40,
+          "sessional": 20
+        },
+        {
+          "code": "MATH 101",
+          "title": "Calculus I",
+          "credit_hours": 3,
+          "mid": 16,
+          "final": 33,
+          "sessional": 18
+        },
+        {
+          "code": "NS 101",
+          "title": "Applied Physics",
+          "credit_hours": 3,
+          "mid": 21,
+          "final": 43,
+          "sessional": 22
+        },
+        {
+          "code": "HUM 101",
+          "title": "Islamic Studies",
+          "credit_hours": 2,
+          "mid": 19,
+          "final": 39,
+          "sessional": 20
+        }
+      ]
+    },
+    "2": {
+      "term": "Spring 2023",
+      "courses": [
+        {
+          "code": "CS 102",
+          "title": "Programming Fundamentals",
+          "credit_hours": 4,
+          "mid": 18,
+          "final": 36,
+          "sessional": 19
+        },
+        {
+          "code": "MATH 102",
+          "title": "Calculus II",
+          "credit_hours": 3,
+          "mid": 15,
+          "final": 30,
+          "sessional": 16
+        },
+        {
+          "code": "EE 101",
+          "title": "Digital Logic Design",
+          "credit_hours": 3,
+          "mid": 20,
+          "final": 40,
+          "sessional": 21
+        },
+        {
+          "code": "ENG 102",
+          "title": "Communication Skills",
+          "credit_hours": 2,
+          "mid": 21,
+          "final": 42,
+          "sessional": 22
+        },
+        {
+          "code": "HUM 102",
+          "title": "Pakistan Studies",
+          "credit_hours": 2,
+          "mid": 18,
+          "final": 37,
+          "sessional": 19
+        }
+      ]
+    },
+    "3": {
+      "term": "Fall 2023",
+      "courses": [
+        {
+          "code": "CS 201",
+          "title": "Object Oriented Programming",
+          "credit_hours": 4,
+          "mid": 21,
+          "final": 43,
+          "sessional": 22
+        },
+        {
+          "code": "CS 202",
+          "title": "Data Structures",
+          "credit_hours": 3,
+          "mid": 19,
+          "final": 38,
+          "sessional": 20
+        },
+        {
+          "code": "MATH 201",
+          "title": "Discrete Mathematics",
+          "credit_hours": 3,
+          "mid": 17,
+          "final": 34,
+          "sessional": 18
+        },
+        {
+          "code": "EE 201",
+          "title": "Computer Organization",
+          "credit_hours": 3,
+          "mid": 18,
+          "final": 36,
+          "sessional": 19
+        },
+        {
+          "code": "STAT 201",
+          "title": "Probability & Statistics",
+          "credit_hours": 3,
+          "mid": 16,
+          "final": 32,
+          "sessional": 17
+        }
+      ]
+    },
+    "4": {
+      "term": "Spring 2024",
+      "courses": [
+        {
+          "code": "CS 203",
+          "title": "Database Systems",
+          "credit_hours": 3,
+          "mid": 22,
+          "final": 44,
+          "sessional": 23
+        },
+        {
+          "code": "CS 204",
+          "title": "Algorithms",
+          "credit_hours": 3,
+          "mid": 15,
+          "final": 31,
+          "sessional": 16
+        },
+        {
+          "code": "CS 205",
+          "title": "Operating Systems",
+          "credit_hours": 3,
+          "mid": 18,
+          "final": 37,
+          "sessional": 19
+        },
+        {
+          "code": "MATH 202",
+          "title": "Linear Algebra",
+          "credit_hours": 3,
+          "mid": 17,
+          "final": 35,
+          "sessional": 18
+        },
+        {
+          "code": "SE 201",
+          "title": "Software Engineering",
+          "credit_hours": 3,
+          "mid": 20,
+          "final": 41,
+          "sessional": 21
+        }
+      ]
+    },
+    "5": {
+      "term": "Fall 2024",
+      "courses": [
+        {
+          "code": "CS 301",
+          "title": "Computer Networks",
+          "credit_hours": 3,
+          "mid": 21,
+          "final": 43,
+          "sessional": 22
+        },
+        {
+          "code": "CS 302",
+          "title": "Web Technologies",
+          "credit_hours": 3,
+          "mid": 23,
+          "final": 45,
+          "sessional": 23
+        },
+        {
+          "code": "CS 303",
+          "title": "Theory of Automata",
+          "credit_hours": 3,
+          "mid": 16,
+          "final": 33,
+          "sessional": 17
+        },
+        {
+          "code": "SE 301",
+          "title": "Software Design & Architecture",
+          "credit_hours": 3,
+          "mid": 20,
+          "final": 40,
+          "sessional": 21
+        },
+        {
+          "code": "IT 301",
+          "title": "Information Security",
+          "credit_hours": 3,
+          "mid": 19,
+          "final": 39,
+          "sessional": 20
+        }
+      ]
+    },
+    "6": {
+      "term": "Spring 2025",
+      "courses": [
+        {
+          "code": "CS 304",
+          "title": "Artificial Intelligence",
+          "credit_hours": 3,
+          "mid": 22,
+          "final": 44,
+          "sessional": 23
+        },
+        {
+          "code": "CS 305",
+          "title": "Compiler Construction",
+          "credit_hours": 3,
+          "mid": 18,
+          "final": 36,
+          "sessional": 19
+        },
+        {
+          "code": "IT 302",
+          "title": "Cloud Computing",
+          "credit_hours": 3,
+          "mid": 21,
+          "final": 42,
+          "sessional": 22
+        },
+        {
+          "code": "SE 302",
+          "title": "Software Quality Engineering",
+          "credit_hours": 3,
+          "mid": 20,
+          "final": 41,
+          "sessional": 21
+        },
+        {
+          "code": "MGT 301",
+          "title": "Engineering Management",
+          "credit_hours": 2,
+          "mid": 21,
+          "final": 43,
+          "sessional": 22
+        }
+      ]
+    },
+    "7": {
+      "term": "Fall 2025",
+      "courses": [
+        {
+          "code": "CS 401",
+          "title": "Machine Learning",
+          "credit_hours": 3,
+          "mid": 23,
+          "final": 46,
+          "sessional": 23
+        },
+        {
+          "code": "CS 402",
+          "title": "Mobile Application Development",
+          "credit_hours": 3,
+          "mid": 22,
+          "final": 44,
+          "sessional": 23
+        },
+        {
+          "code": "IT 401",
+          "title": "Data Science & Analytics",
+          "credit_hours": 3,
+          "mid": 21,
+          "final": 43,
+          "sessional": 22
+        },
+        {
+          "code": "CS 403",
+          "title": "Final Year Project I",
+          "credit_hours": 3,
+          "mid": 22,
+          "final": 45,
+          "sessional": 22
+        },
+        {
+          "code": "MGT 401",
+          "title": "Entrepreneurship",
+          "credit_hours": 2,
+          "mid": 20,
+          "final": 41,
+          "sessional": 21
+        }
+      ]
+    },
+    "8": {
+      "term": "Spring 2026",
+      "courses": [
+        {
+          "code": "CS 404",
+          "title": "Cyber Security",
+          "credit_hours": 3,
+          "mid": 22,
+          "final": 45,
+          "sessional": 23
+        },
+        {
+          "code": "CS 405",
+          "title": "Distributed Systems",
+          "credit_hours": 3,
+          "mid": 21,
+          "final": 43,
+          "sessional": 22
+        },
+        {
+          "code": "CS 406",
+          "title": "Final Year Project II",
+          "credit_hours": 3,
+          "mid": 23,
+          "final": 46,
+          "sessional": 24
+        },
+        {
+          "code": "IT 402",
+          "title": "Enterprise Systems",
+          "credit_hours": 3,
+          "mid": 21,
+          "final": 42,
+          "sessional": 22
+        },
+        {
+          "code": "HUM 401",
+          "title": "Professional Ethics",
+          "credit_hours": 2,
+          "mid": 21,
+          "final": 43,
+          "sessional": 22
+        }
+      ]
+    }
   },
   "fees": [
-    { "term": "Fall 2024", "total": 71005, "paid": 71005 },
-    { "term": "Spring 2025", "total": 53415, "paid": 53415 },
-    { "term": "Fall 2025", "total": 50415, "paid": 50415 },
-    { "term": "Spring 2026", "total": 53415, "paid": 14000 } ],
+    {
+      "term": "Fall 2022",
+      "total": 71005,
+      "paid": 71005
+    },
+    {
+      "term": "Spring 2023",
+      "total": 53415,
+      "paid": 53415
+    },
+    {
+      "term": "Fall 2023",
+      "total": 50415,
+      "paid": 50415
+    },
+    {
+      "term": "Spring 2024",
+      "total": 53415,
+      "paid": 53415
+    },
+    {
+      "term": "Fall 2024",
+      "total": 52000,
+      "paid": 52000
+    },
+    {
+      "term": "Spring 2025",
+      "total": 54000,
+      "paid": 54000
+    },
+    {
+      "term": "Fall 2025",
+      "total": 53000,
+      "paid": 53000
+    },
+    {
+      "term": "Spring 2026",
+      "total": 55000,
+      "paid": 55000
+    }
+  ],
   "attendance": [
-    { "code": "CS 221", "title": "Data Structures", "present": 28, "total": 34 },
-    { "code": "CS 412", "title": "Artificial Intelligence", "present": 19, "total": 30 },
-    { "code": "HUM 201", "title": "Expository Writing", "present": 31, "total": 33 } ],
-  "schedule": [
-    { "code": "CS 221", "day": "Monday", "time": "11:00 AM - 12:30 PM", "room": "TBA" },
-    { "code": "HUM 201", "day": "Tuesday", "time": "9:30 AM - 11:30 AM", "room": "TBA" } ]
+    {
+      "code": "CS 404",
+      "title": "Cyber Security",
+      "present": 41,
+      "total": 44
+    },
+    {
+      "code": "CS 405",
+      "title": "Distributed Systems",
+      "present": 38,
+      "total": 42
+    },
+    {
+      "code": "CS 406",
+      "title": "Final Year Project II",
+      "present": 30,
+      "total": 30
+    },
+    {
+      "code": "IT 402",
+      "title": "Enterprise Systems",
+      "present": 39,
+      "total": 44
+    },
+    {
+      "code": "HUM 401",
+      "title": "Professional Ethics",
+      "present": 28,
+      "total": 30
+    }
+  ],
+  "schedule": []
 }

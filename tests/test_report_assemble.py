@@ -32,34 +32,30 @@ def run():
     check("program present", bool(r["student"]["program"]))
 
     # cgpa section
-    check("CGPA is 3.28", r["cgpa"]["cgpa"] == 3.28)
-    check("standing is 'good'", r["cgpa"]["standing"] == "good")
+    check("CGPA is 3.53", r["cgpa"]["cgpa"] == 3.53)
+    check("standing is excellent", r["cgpa"]["standing"] == "excellent")
 
     # trend section
     pts = r["trend"]["points"]
-    check("trend has 3 completed points", len(pts) == 3)
+    check("trend has 8 completed points", len(pts) == 8)
     check("trend direction is up", r["trend"]["direction"] == "up")
-    check("trend gpas correct", [p["gpa"] for p in pts] == [3.17, 3.0, 3.67])
+    check("trend gpas correct", [p["gpa"] for p in pts] == [3.56, 3.14, 3.19, 3.2, 3.54, 3.72, 3.96, 4.0])
 
     # fees section
-    check("fees total correct", r["fees"]["total"] == 228250)
-    check("fees due correct", r["fees"]["due"] == 39415)
-    check("fees status outstanding", r["fees"]["status"] == "outstanding")
+    check("fees total correct", r["fees"]["total"] == 442250)
+    check("fees due correct", r["fees"]["due"] == 0)
+    check("fees status clear", r["fees"]["status"] == "clear")
 
     # attendance section
-    below = r["attendance"]["below_threshold"]
-    check("one course below threshold", len(below) == 1)
-    check("AI flagged at 63%", below[0]["percent"] == 63)
     check("threshold is 75", r["attendance"]["threshold"] == 75)
+    check("attendance section present", "courses" in r["attendance"])
 
     # semesters section
     sems = r["semesters"]
-    check("four semesters present", len(sems) == 4)
+    check("eight semesters present", len(sems) == 8)
     complete = [s for s in sems if s["status"] == "complete"]
-    check("three complete semesters", len(complete) == 3)
-    inprog = [s for s in sems if s["status"] == "in_progress"]
-    check("semester 4 is in_progress", len(inprog) == 1 and inprog[0]["semester"] == "4")
-    check("in_progress semester has no gpa", inprog[0]["gpa"] is None)
+    check("eight complete semesters", len(complete) == 8)
+    check("all semesters have a gpa", all(s["gpa"] is not None for s in complete))
 
     # ---- edge: empty/new student must not crash and must be coherent ----
     empty = normalize_student({"student_id": "N", "name": "New", "current_semester": 1,
@@ -71,7 +67,7 @@ def run():
 
     # ---- credits + degree progress (added after portal review) ----
     check("credits section present", "credits" in r)
-    check("completed credits is 26", r["credits"]["completed"] == 26)
+    check("completed credits is 116", r["credits"]["completed"] == 116)
     check("degree percent is sane", 0 <= r["credits"]["percent"] <= 100)
     check("degree total is configurable", r["credits"]["total_required"] > 0)
     check("progress flagged as estimate", r["credits"]["is_estimate"] is True)

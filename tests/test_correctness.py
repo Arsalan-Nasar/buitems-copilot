@@ -100,11 +100,14 @@ def run():
         check(f"marks {marks} -> {expected_grade}", marks_to_grade(marks) == expected_grade)
 
     # ---- Incomplete semester must NOT produce a fake GPA ----
+    # (tested with a synthetic incomplete semester so it doesn't depend on the
+    #  demo dataset, which may be a fully-completed student.)
     from core.grading import semester_gpa
-    sem4 = DATA["semesters"].get("4")
-    if sem4:
-        check("incomplete semester 4 returns no GPA",
-              semester_gpa(sem4["courses"]) is None)
+    incomplete = [
+        {"code": "X", "title": "X", "credit_hours": 3, "mid": 20, "final": None, "sessional": 18},
+        {"code": "Y", "title": "Y", "credit_hours": 3, "mid": 22, "final": 44, "sessional": 22},
+    ]
+    check("incomplete semester returns no GPA", semester_gpa(incomplete) is None)
 
     # ---- report ----
     passed = sum(1 for _, ok in results if ok)

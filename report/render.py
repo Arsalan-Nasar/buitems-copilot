@@ -166,9 +166,13 @@ def render_report(report, intelligence):
     score = hs["score"]
     band = hs.get("band") or _band_from_score(score)
 
-    # trend data -> JSON for the JS chart
-    trend_points = [{"s": _esc(p["semester"]), "g": p["gpa"]} for p in trend["points"]]
+    # trend data -> JSON for the JS chart (now includes % change per semester)
+    trend_points = [{"s": _esc(p["semester"]), "g": p["gpa"],
+                     "c": p.get("change_pct")} for p in trend["points"]]
     trend_json = _json.dumps(trend_points)
+    _best = trend.get("best"); _low = trend.get("lowest")
+    best_txt = f'{_best["gpa"]} (Sem {_esc(_best["semester"])})' if _best else "—"
+    low_txt = f'{_low["gpa"]} (Sem {_esc(_low["semester"])})' if _low else "—"
     dir_map = {"up": "Trending up", "down": "Trending down", "flat": "Holding steady"}
     dir_txt = dir_map.get(trend["direction"], "")
     dir_arrow = "&#9650;" if trend["direction"] == "up" else ("&#9660;" if trend["direction"] == "down" else "&#9644;")
@@ -254,6 +258,23 @@ def render_report(report, intelligence):
   .trend-head{{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px}}
   .trend-head h3{{font-family:'Sora';font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}}
   .trend-head .dir{{font-size:12.5px;font-weight:600}}
+  .trend-stats{{display:flex;gap:20px}}
+  .tstat{{display:flex;flex-direction:column;gap:2px}}
+  .tstat i{{font-style:normal;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}}
+  .tstat b{{font-family:'Sora';font-weight:700;font-size:15px;color:var(--navy)}}
+  .chart .chg{{font-family:'Sora';font-weight:600;font-size:11px}}
+  .chart .chg.up{{fill:var(--green)}}.chart .chg.down{{fill:var(--red)}}
+  .dl-btn{{margin-top:14px;width:100%;padding:11px;border:1px solid var(--line);background:var(--bg);
+    color:var(--royal);font-family:'Sora';font-weight:600;font-size:13px;border-radius:10px;cursor:pointer;
+    transition:background .2s,border-color .2s}}
+  .dl-btn:hover{{background:var(--blue-soft);border-color:var(--blue)}}
+  @media print{{
+    body{{background:#fff}}.wrap{{max-width:100%;padding:0}}
+    .rise{{opacity:1!important;transform:none!important}}
+    .dl-btn{{display:none}}.hero{{box-shadow:none}}
+    .card,.trend-card,.sem,.flag{{box-shadow:none;break-inside:avoid}}
+    .chart .line{{stroke-dashoffset:0!important}}.chart .dot,.chart .dv,.chart .chg,.area{{opacity:1!important}}
+  }}
   svg.chart{{width:100%;height:auto;display:block;overflow:visible}}
   .chart .grid-l{{stroke:var(--line);stroke-width:1}}
   .chart .ax{{fill:var(--muted);font-size:11px;font-family:'Inter'}}
@@ -334,18 +355,24 @@ def render_report(report, intelligence):
 
   <div class="lbl rise d3"><span class="dot"></span><b>GPA Trend</b><span class="rule"></span></div>
   <div class="trend-card rise d3">
-    <div class="trend-head"><h3>Completed semesters</h3><span class="dir" style="color:{dir_color}">{dir_arrow} {_esc(dir_txt)}</span></div>
-    <svg class="chart" viewBox="0 0 600 210">
+    <div class="trend-head">
+      <div class="trend-stats">
+        <span class="tstat"><i>CGPA</i><b class="num">{_esc(cg_txt)}</b></span>
+        <span class="tstat"><i>Peak</i><b class="num">{best_txt}</b></span>
+        <span class="tstat"><i>Lowest</i><b class="num">{low_txt}</b></span>
+      </div>
+      <span class="dir" style="color:{dir_color}">{dir_arrow} {_esc(dir_txt)}</span>
+    </div>
+    <svg class="chart" viewBox="0 0 640 260">
       <defs>
         <linearGradient id="gLine" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#1e5aa8"/><stop offset="1" stop-color="#123a63"/></linearGradient>
-        <linearGradient id="gGold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="rgba(30,90,168,.16)"/><stop offset="1" stop-color="rgba(30,90,168,0)"/></linearGradient>
+        <linearGradient id="gGold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="rgba(30,90,168,.18)"/><stop offset="1" stop-color="rgba(30,90,168,0)"/></linearGradient>
       </defs>
-      <line class="grid-l" x1="44" y1="30" x2="588" y2="30"/><text class="ax" x="34" y="34" text-anchor="end">4.0</text>
-      <line class="grid-l" x1="44" y1="90" x2="588" y2="90"/><text class="ax" x="34" y="94" text-anchor="end">3.0</text>
-      <line class="grid-l" x1="44" y1="150" x2="588" y2="150"/><text class="ax" x="34" y="154" text-anchor="end">2.0</text>
+      <g id="grid"></g>
       <path class="area" id="area"/><polyline class="line" id="line" points=""/>
-      <g id="dots"></g><g id="xlabels"></g>
+      <g id="dots"></g><g id="xlabels"></g><g id="changes"></g>
     </svg>
+    <button class="dl-btn" onclick="window.print()">&#8681; Download report (PDF)</button>
   </div>
 
   <div class="grid g2" style="margin-top:14px">
@@ -388,25 +415,46 @@ def render_report(report, intelligence):
   for(var i=0;i<fills.length;i++){{(function(f){{requestAnimationFrame(function(){{f.style.width=getComputedStyle(f).getPropertyValue('--w');}});}})(fills[i]);}}
 
   var pts={trend_json};
+  var SVGNS='http://www.w3.org/2000/svg';
+  function mk(tag,attrs,cls){{var e=document.createElementNS(SVGNS,tag);for(var k in attrs)e.setAttribute(k,attrs[k]);if(cls)e.setAttribute('class',cls);return e;}}
   if(pts.length){{
-    var X0=70,X1=560;
-    var Y=function(g){{return 30+(4.0-g)/(4.0-1.5)*150;}};
+    var X0=64,X1=600,TOP=34,BOT=196;
+    var Y=function(g){{return TOP+(4.0-g)/(4.0-2.0)*(BOT-TOP);}};
     var xs=pts.map(function(p,i){{return X0+(X1-X0)*(pts.length>1?i/(pts.length-1):0.5);}});
+    // gridlines 2.0-4.0
+    var grid=document.getElementById('grid');
+    [2.0,2.5,3.0,3.5,4.0].forEach(function(g){{
+      var y=Y(g);
+      grid.appendChild(mk('line',{{x1:X0,y1:y,x2:X1,y2:y}},'grid-l'));
+      grid.appendChild(mk('text',{{x:X0-10,y:y+4,'text-anchor':'end'}},'ax')).textContent=g.toFixed(1);
+    }});
     document.getElementById('line').setAttribute('points',xs.map(function(x,i){{return x+','+Y(pts[i].g);}}).join(' '));
-    var area='M'+xs[0]+','+Y(pts[0].g)+' '+xs.map(function(x,i){{return 'L'+x+','+Y(pts[i].g);}}).join(' ')+' L'+xs[xs.length-1]+',180 L'+xs[0]+',180 Z';
+    var area='M'+xs[0]+','+Y(pts[0].g)+' '+xs.map(function(x,i){{return 'L'+x+','+Y(pts[i].g);}}).join(' ')+' L'+xs[xs.length-1]+','+BOT+' L'+xs[0]+','+BOT+' Z';
     var areaEl=document.getElementById('area');areaEl.setAttribute('d',area);
     setTimeout(function(){{areaEl.style.transition='opacity 1s ease';areaEl.style.opacity=1;}},1400);
-    var dots=document.getElementById('dots'),xl=document.getElementById('xlabels');
+    var dots=document.getElementById('dots'),xl=document.getElementById('xlabels'),chg=document.getElementById('changes');
+    var gmax=Math.max.apply(null,pts.map(function(p){{return p.g;}}));
+    var gmin=Math.min.apply(null,pts.map(function(p){{return p.g;}}));
     pts.forEach(function(p,i){{
       var cx=xs[i],cy=Y(p.g);
-      var c=document.createElementNS('http://www.w3.org/2000/svg','circle');
-      c.setAttribute('class','dot');c.setAttribute('cx',cx);c.setAttribute('cy',cy);c.setAttribute('r',5.5);
-      c.style.animationDelay=(1.1+i*.18)+'s';dots.appendChild(c);
-      var t=document.createElementNS('http://www.w3.org/2000/svg','text');
-      t.setAttribute('class','dv');t.setAttribute('x',cx);t.setAttribute('y',cy-14);t.textContent=Number(p.g).toFixed(2);
-      t.style.animationDelay=(1.2+i*.18)+'s';dots.appendChild(t);
-      var xt=document.createElementNS('http://www.w3.org/2000/svg','text');
-      xt.setAttribute('class','ax');xt.setAttribute('x',cx);xt.setAttribute('y',200);xt.setAttribute('text-anchor','middle');xt.textContent='Sem '+p.s;xl.appendChild(xt);
+      var isPeak=(p.g===gmax),isLow=(p.g===gmin);
+      var c=mk('circle',{{cx:cx,cy:cy,r:isPeak||isLow?6.5:5}},'dot');
+      if(isPeak)c.style.stroke='#1f9d6b';if(isLow)c.style.stroke='#d0553f';
+      c.style.animationDelay=(1.1+i*.14)+'s';dots.appendChild(c);
+      var t=mk('text',{{x:cx,y:cy-14,'text-anchor':'middle'}},'dv');
+      t.textContent=Number(p.g).toFixed(2);t.style.animationDelay=(1.2+i*.14)+'s';dots.appendChild(t);
+      // x label
+      var xt=mk('text',{{x:cx,y:BOT+22,'text-anchor':'middle'}},'ax');
+      xt.textContent='Sem '+p.s;xl.appendChild(xt);
+      // % change label between points
+      if(p.c!==null&&p.c!==undefined&&i>0){{
+        var midx=(xs[i-1]+xs[i])/2, midy=(Y(pts[i-1].g)+Y(p.g))/2 - 10;
+        var up=p.c>=0;
+        var ct=mk('text',{{x:midx,y:midy,'text-anchor':'middle'}},'chg '+(up?'up':'down'));
+        ct.textContent=(up?'▲ +':'▼ ')+p.c+'%';
+        ct.style.opacity=0;ct.style.animation='pop .4s ease '+(1.6+i*.12)+'s forwards';
+        chg.appendChild(ct);
+      }}
     }});
   }}
 </script>
