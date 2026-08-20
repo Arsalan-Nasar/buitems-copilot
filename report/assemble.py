@@ -158,4 +158,67 @@ def assemble_report(data):
         "fees": build_fees_section(data),
         "attendance": build_attendance_section(data),
         "trend": build_trend_section(data),
+        "credits": build_credits_section(data),
+        "course_history": build_course_history(data),
     }
+
+
+# ---------------------------------------------------------------------------
+# CREDIT-HOUR SUMMARY + DEGREE PROGRESS (added after real-portal review).
+# The portal tracks units (credit hours) per course and computes GPA as
+# grade-points / units. It also shows course status (Taken / In Progress).
+# ---------------------------------------------------------------------------
+
+# BUITEMS BS IT total credit hours to graduate. This is a CONFIGURABLE estimate
+# — set it to the exact number from the official Scheme of Studies once confirmed.
+# Kept here as the single place to change it.
+DEGREE_TOTAL_CREDITS = 133   # ESTIMATE — confirm against BUITEMS scheme of studies
+
+
+def build_credits_section(data, total_required=DEGREE_TOTAL_CREDITS):
+    """Credit-hour totals and degree progress.
+
+    completed  = credits from courses with a final grade posted
+    in_progress = credits from current/unfinished courses
+    """
+    completed = 0
+    in_progress = 0
+    for sem in data.get("semesters", {}).values():
+        for c in sem.get("courses", []):
+            ch = c.get("credit_hours") or 0
+            posted = c.get("final") is not None and c.get("mid") is not None
+            if posted:
+                completed += ch
+            else:
+                in_progress += ch
+    pct = round(completed / total_required * 100) if total_required else 0
+    pct = min(pct, 100)
+    return {
+        "completed": completed,
+        "in_progress": in_progress,
+        "total_required": total_required,
+        "remaining": max(0, total_required - completed),
+        "percent": pct,
+        "is_estimate": True,   # flag so the UI can label it honestly
+    }
+
+
+def build_course_history(data):
+    """Flat list of every course with its status (Taken / In Progress), grade,
+    and credit hours — mirrors the portal's 'My Course History' view."""
+    history = []
+    for sem_id in sorted(data.get("semesters", {}), key=lambda s: int(s) if s.isdigit() else 0):
+        sem = data["semesters"][sem_id]
+        for c in sem.get("courses", []):
+            posted = c.get("final") is not None and c.get("mid") is not None
+            marks = total_marks(c) if posted else None
+            history.append({
+                "code": c.get("code", ""),
+                "title": c.get("title", c.get("code", "Course")),
+                "credit_hours": c.get("credit_hours", 0),
+                "term": sem.get("term", ""),
+                "semester": sem_id,
+                "grade": marks_to_grade(marks) if marks is not None else None,
+                "status": "taken" if posted else "in_progress",
+            })
+    return history

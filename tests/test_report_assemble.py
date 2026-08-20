@@ -69,6 +69,20 @@ def run():
     check("empty student: no trend points", er["trend"]["points"] == [])
     check("empty student: fees clear", er["fees"]["status"] == "clear")
 
+    # ---- credits + degree progress (added after portal review) ----
+    check("credits section present", "credits" in r)
+    check("completed credits is 26", r["credits"]["completed"] == 26)
+    check("degree percent is sane", 0 <= r["credits"]["percent"] <= 100)
+    check("degree total is configurable", r["credits"]["total_required"] > 0)
+    check("progress flagged as estimate", r["credits"]["is_estimate"] is True)
+
+    # ---- course history ----
+    check("course history present", "course_history" in r)
+    check("course history has entries", len(r["course_history"]) > 0)
+    check("history entries have status", all("status" in c for c in r["course_history"]))
+    check("history status is taken/in_progress",
+          all(c["status"] in ("taken", "in_progress") for c in r["course_history"]))
+
     passed = sum(1 for _, ok in results if ok)
     for name, ok in results:
         if not ok:

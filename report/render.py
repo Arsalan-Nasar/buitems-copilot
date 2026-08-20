@@ -138,6 +138,24 @@ def _suggestion_items(suggestions):
 # ---------------------------------------------------------------------------
 # Main render
 # ---------------------------------------------------------------------------
+def _degree_progress(credits):
+    """A degree-completion progress bar (administration loves completion metrics)."""
+    pct = credits["percent"]
+    est = " (estimated)" if credits.get("is_estimate") else ""
+    return (
+        f'<div class="lbl rise d4"><span class="dot"></span><b>Degree Progress</b><span class="rule"></span></div>'
+        f'<div class="card rise d4">'
+        f'<div class="dp-top"><span class="dp-pct num">{_esc(pct)}%</span>'
+        f'<span class="dp-cap">{_esc(credits["completed"])} of {_esc(credits["total_required"])} credit hours{est}</span></div>'
+        f'<div class="dp-track"><span class="dp-fill" style="--w:{_esc(pct)}%"></span></div>'
+        f'<div class="dp-legend">'
+        f'<span><b class="num">{_esc(credits["completed"])}</b> completed</span>'
+        f'<span><b class="num">{_esc(credits["in_progress"])}</b> in progress</span>'
+        f'<span><b class="num">{_esc(credits["remaining"])}</b> remaining</span>'
+        f'</div></div>'
+    )
+
+
 def render_report(report, intelligence):
     st = report["student"]
     hs = intelligence["health_score"]
@@ -224,6 +242,13 @@ def render_report(report, intelligence):
   .stat.sm{{font-size:26px}}
   .stat-sub{{font-size:12.5px;color:var(--muted);margin-top:6px}}
   .pill{{display:inline-block;font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;margin-top:10px;text-transform:capitalize}}
+  .dp-top{{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:12px}}
+  .dp-pct{{font-family:'Sora';font-weight:800;font-size:32px;letter-spacing:-.02em;color:var(--royal)}}
+  .dp-cap{{font-size:12.5px;color:var(--muted)}}
+  .dp-track{{height:12px;background:var(--line);border-radius:20px;overflow:hidden;margin-bottom:14px}}
+  .dp-fill{{display:block;height:100%;border-radius:20px;background:linear-gradient(90deg,var(--royal),var(--blue));width:0;transition:width 1.3s cubic-bezier(.22,1,.36,1) .4s}}
+  .dp-legend{{display:flex;gap:22px;font-size:12.5px;color:var(--muted)}}
+  .dp-legend b{{color:var(--ink);font-family:'Sora';font-weight:700;margin-right:4px}}
   .pill.good{{background:var(--blue-soft);color:var(--blue)}}.pill.warn{{background:var(--gold-soft);color:#a5761a}}
   .trend-card{{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:22px 20px 14px;box-shadow:var(--shadow)}}
   .trend-head{{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px}}
@@ -328,6 +353,8 @@ def render_report(report, intelligence):
     <div class="card rise d4"><h3>Fees</h3><div class="stat sm num">{_esc(fee_due)}</div><div class="stat-sub">{fee_total}</div><span class="pill {fee_pill[0]}">{fee_pill[1]}</span></div>
   </div>
 
+  {_degree_progress(report["credits"])}
+
   <div class="grid g2" style="margin-top:14px">
     <div class="card rise d5"><h3>Strengths</h3><div class="sw">{_sw_items(intelligence["strengths"], "up")}</div></div>
     <div class="card rise d5"><h3>Needs Focus</h3><div class="sw">{_sw_items(intelligence["weaknesses"], "dn")}</div></div>
@@ -357,7 +384,7 @@ def render_report(report, intelligence):
   var numEl=document.getElementById('scoreNum'),s=0;
   function step(){{s+=2;if(s>=score){{numEl.textContent=score;}}else{{numEl.textContent=s;requestAnimationFrame(step);}}}}
   setTimeout(function(){{requestAnimationFrame(step);}},400);
-  var fills=document.querySelectorAll('.bd-fill');
+  var fills=document.querySelectorAll('.bd-fill,.dp-fill');
   for(var i=0;i<fills.length;i++){{(function(f){{requestAnimationFrame(function(){{f.style.width=getComputedStyle(f).getPropertyValue('--w');}});}})(fills[i]);}}
 
   var pts={trend_json};

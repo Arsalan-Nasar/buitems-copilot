@@ -70,6 +70,8 @@ def run():
     check("no live injected script/handler in output", live is None)
     check("injected script is escaped instead", "&lt;script&gt;" in ehtml)
 
+    check("degree progress rendered", "Degree Progress" in html)
+
     passed = sum(1 for _, ok in results if ok)
     for name, ok in results:
         if not ok:
