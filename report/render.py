@@ -163,13 +163,18 @@ def render_report(report, intelligence):
     fe = report["fees"]
     trend = report["trend"]
 
+    # health score may be None for a brand-new student with no results yet.
     score = hs["score"]
-    band = hs.get("band") or _band_from_score(score)
+    is_pending = hs.get("pending") or score is None
+    score_js = 0 if is_pending else score          # JS count-up target
+    score_display = "\u2013" if is_pending else score
+    band = hs.get("band") or _band_from_score(score or 0)
 
     # trend data -> JSON for the JS chart (now includes % change per semester)
     trend_points = [{"s": _esc(p["semester"]), "g": p["gpa"],
                      "c": p.get("change_pct")} for p in trend["points"]]
     trend_json = _json.dumps(trend_points)
+    _has_trend = len(trend_points) >= 2
     _best = trend.get("best"); _low = trend.get("lowest")
     best_txt = f'{_best["gpa"]} (Sem {_esc(_best["semester"])})' if _best else "—"
     low_txt = f'{_low["gpa"]} (Sem {_esc(_low["semester"])})' if _low else "—"
@@ -185,6 +190,39 @@ def render_report(report, intelligence):
     fee_due = f"Rs {fe['due']:,}" if fe["due"] > 0 else "Rs 0"
     fee_total = f"of Rs {fe['total']:,} &middot; still due" if fe["due"] > 0 else "All clear"
     fee_pill = ("warn", "Outstanding") if fe["status"] == "outstanding" else ("good", "Cleared")
+
+    # Build the trend card's inner HTML OUTSIDE the f-string (older-Python-safe:
+    # avoids nested triple-quotes/braces inside an f-string expression). Placed
+    # here, after all of cg_txt/best_txt/low_txt/dir_* are defined.
+    if _has_trend:
+        trend_inner = (
+            '<div class="trend-head"><div class="trend-stats">'
+            '<span class="tstat"><i>CGPA</i><b class="num">' + _esc(cg_txt) + '</b></span>'
+            '<span class="tstat"><i>Peak</i><b class="num">' + best_txt + '</b></span>'
+            '<span class="tstat"><i>Lowest</i><b class="num">' + low_txt + '</b></span>'
+            '</div><span class="dir" style="color:' + dir_color + '">'
+            + dir_arrow + ' ' + _esc(dir_txt) + '</span></div>'
+            '<svg class="chart" viewBox="0 0 640 260">'
+            '<defs>'
+            '<linearGradient id="gLine" x1="0" y1="0" x2="1" y2="0">'
+            '<stop offset="0" stop-color="#1e5aa8"/><stop offset="1" stop-color="#123a63"/></linearGradient>'
+            '<linearGradient id="gGold" x1="0" y1="0" x2="0" y2="1">'
+            '<stop offset="0" stop-color="rgba(30,90,168,.18)"/>'
+            '<stop offset="1" stop-color="rgba(30,90,168,0)"/></linearGradient>'
+            '</defs>'
+            '<g id="grid"></g>'
+            '<path class="area" id="area"/><polyline class="line" id="line" points=""/>'
+            '<g id="dots"></g><g id="xlabels"></g><g id="changes"></g>'
+            '</svg>'
+        )
+    else:
+        trend_inner = (
+            '<div style="text-align:center;padding:40px 20px;color:var(--muted)">'
+            '<div style="font-family:Sora,sans-serif;font-weight:700;font-size:18px;'
+            'color:var(--navy);margin-bottom:6px">Trend coming soon</div>'
+            '<div style="font-size:13px">A GPA trend chart appears once you have '
+            'at least two completed semesters.</div></div>'
+        )
 
     return f'''<!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8">
@@ -355,23 +393,7 @@ def render_report(report, intelligence):
 
   <div class="lbl rise d3"><span class="dot"></span><b>GPA Trend</b><span class="rule"></span></div>
   <div class="trend-card rise d3">
-    <div class="trend-head">
-      <div class="trend-stats">
-        <span class="tstat"><i>CGPA</i><b class="num">{_esc(cg_txt)}</b></span>
-        <span class="tstat"><i>Peak</i><b class="num">{best_txt}</b></span>
-        <span class="tstat"><i>Lowest</i><b class="num">{low_txt}</b></span>
-      </div>
-      <span class="dir" style="color:{dir_color}">{dir_arrow} {_esc(dir_txt)}</span>
-    </div>
-    <svg class="chart" viewBox="0 0 640 260">
-      <defs>
-        <linearGradient id="gLine" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#1e5aa8"/><stop offset="1" stop-color="#123a63"/></linearGradient>
-        <linearGradient id="gGold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="rgba(30,90,168,.18)"/><stop offset="1" stop-color="rgba(30,90,168,0)"/></linearGradient>
-      </defs>
-      <g id="grid"></g>
-      <path class="area" id="area"/><polyline class="line" id="line" points=""/>
-      <g id="dots"></g><g id="xlabels"></g><g id="changes"></g>
-    </svg>
+    {trend_inner}
     <button class="dl-btn" onclick="window.print()">&#8681; Download report (PDF)</button>
   </div>
 
@@ -404,13 +426,15 @@ def render_report(report, intelligence):
 
 </div>
 <script>
-  var score={score};
+  var score={score_js}, scorePending={"true" if is_pending else "false"};
   var ring=document.getElementById('ring');
   var C=465, off=C-C*(score/100);
   requestAnimationFrame(function(){{ring.style.transition='stroke-dashoffset 1.5s cubic-bezier(.22,1,.36,1) .3s';ring.style.strokeDashoffset=off;}});
   var numEl=document.getElementById('scoreNum'),s=0;
-  function step(){{s+=2;if(s>=score){{numEl.textContent=score;}}else{{numEl.textContent=s;requestAnimationFrame(step);}}}}
-  setTimeout(function(){{requestAnimationFrame(step);}},400);
+  if(scorePending){{numEl.textContent='–';}}else{{
+    function step(){{s+=2;if(s>=score){{numEl.textContent=score;}}else{{numEl.textContent=s;requestAnimationFrame(step);}}}}
+    setTimeout(function(){{requestAnimationFrame(step);}},400);
+  }}
   var fills=document.querySelectorAll('.bd-fill,.dp-fill');
   for(var i=0;i<fills.length;i++){{(function(f){{requestAnimationFrame(function(){{f.style.width=getComputedStyle(f).getPropertyValue('--w');}});}})(fills[i]);}}
 

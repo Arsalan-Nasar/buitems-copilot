@@ -165,6 +165,8 @@ def assemble_report(data):
             "name": data.get("name", "Student"),
             "program": data.get("program", ""),
             "current_semester": data.get("current_semester"),
+            "program_length": data.get("program_length", 8),
+            "graduated": data.get("graduated", False),
         },
         "cgpa": build_cgpa_section(data),
         "semesters": build_semester_section(data),
@@ -188,12 +190,20 @@ def assemble_report(data):
 DEGREE_TOTAL_CREDITS = 133   # ESTIMATE — confirm against BUITEMS scheme of studies
 
 
-def build_credits_section(data, total_required=DEGREE_TOTAL_CREDITS):
+def build_credits_section(data, total_required=None):
     """Credit-hour totals and degree progress.
 
     completed  = credits from courses with a final grade posted
     in_progress = credits from current/unfinished courses
+
+    total_required scales with program length: a 5-year (10-semester) program
+    needs proportionally more credits than a 4-year (8-semester) one. Both remain
+    ESTIMATES until confirmed against the official Scheme of Studies.
     """
+    if total_required is None:
+        program_length = data.get("program_length") or 8
+        # ~16.6 credits/semester * number of semesters (rounded to a tidy total)
+        total_required = round(DEGREE_TOTAL_CREDITS * (program_length / 8))
     completed = 0
     in_progress = 0
     for sem in data.get("semesters", {}).values():

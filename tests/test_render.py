@@ -44,7 +44,7 @@ def run():
     check("percentage change rendered", "%" in html)
     check("download button rendered", "Download report" in html)
     check("strengths rendered", "Strengths" in html)
-    check("suggestions rendered", "momentum" in html.lower())
+    check("suggestions rendered", "What to do next" in html or "Congratulations" in html)
     check("trend stats rendered", "Peak" in html and "Lowest" in html)
 
     # the gauge + trend chart svgs exist

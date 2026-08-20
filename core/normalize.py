@@ -86,6 +86,13 @@ def normalize_student(record):
         "name": record.get("name") or "Student",
         "program": record.get("program") or "",
         "current_semester": _num(record.get("current_semester"), 1),
+        # total semesters in the program (8 for a 4-year, 10 for a 5-year degree).
+        # Defaults to 8 if not given.
+        "program_length": _num(record.get("program_length"), 8),
+        # True once the student has completed the degree. Kept through
+        # normalization so the report can switch to a retrospective tone
+        # (no "improve your CGPA" advice for someone who has graduated).
+        "graduated": bool(record.get("graduated")),
         "semesters": semesters,
         "fees": [_clean_fee(f) for f in (record.get("fees") or [])],
         "attendance": [_clean_attendance(a) for a in (record.get("attendance") or [])],
