@@ -36,7 +36,7 @@ def run():
 
     # key data present
     check("student name rendered", "Arsalan Khan Nasir" in html)
-    check("health score rendered", ">76<" in html)
+    check("health score rendered", "score=76" in html and "49/60" in html)
     check("band rendered", "Good" in html)
     check("CGPA rendered", "3.28" in html)
     check("fee due rendered", "39,415" in html)
@@ -48,8 +48,8 @@ def run():
     check("in-progress semester shown", "In progress" in html)
 
     # the gauge + trend chart svgs exist
-    check("health gauge svg present", 'class="gauge"' in html)
-    check("trend chart svg present", 'class="trend"' in html)
+    check("health gauge svg present", 'id="ring"' in html)
+    check("trend chart svg present", 'class="chart"' in html)
 
     # ---- XSS SAFETY: inject script everywhere, confirm no live tag ----
     evil = normalize_student({
