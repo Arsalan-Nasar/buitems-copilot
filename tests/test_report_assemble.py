@@ -79,6 +79,37 @@ def run():
     check("history status is taken/in_progress",
           all(c["status"] in ("taken", "in_progress") for c in r["course_history"]))
 
+    # ---- per-assessment marks breakdown ----
+    check("marks_breakdown present", "marks_breakdown" in r)
+    mb = r["marks_breakdown"]
+    check("marks scheme is 25/50/25",
+          mb["scheme"] == {"mid": 25, "final": 50, "sessional": 25})
+    check("marks breakdown has semesters", len(mb["semesters"]) > 0)
+    # find a posted course and verify its breakdown structure + math
+    first_course = None
+    for sem in mb["semesters"]:
+        for c in sem["courses"]:
+            if c["total"] is not None:
+                first_course = c
+                break
+        if first_course:
+            break
+    check("found a posted course", first_course is not None)
+    if first_course:
+        comps = first_course["breakdown"]
+        check("breakdown has 3 components", len(comps) == 3)
+        check("components are mid/final/sessional",
+              [x["component"] for x in comps] == ["Mid-Term", "Final", "Sessional"])
+        check("component maxes are 25/50/25",
+              [x["max"] for x in comps] == [25, 50, 25])
+        # obtained components should sum to the course total
+        total_from_parts = sum(x["obtained"] for x in comps if x["obtained"] is not None)
+        check("components sum to course total", total_from_parts == first_course["total"])
+        # percentage math
+        mid = comps[0]
+        check("mid percentage correct",
+              mid["percent"] == round(mid["obtained"] / 25 * 100))
+
     passed = sum(1 for _, ok in results if ok)
     for name, ok in results:
         if not ok:

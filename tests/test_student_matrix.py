@@ -43,6 +43,7 @@ def run():
                   0 <= intel["health_score"]["score"] <= 100)
             check(f"{name}: has suggestions", len(intel["suggestions"]) > 0)
             check(f"{name}: has at least one flag", len(intel["flags"]) > 0)
+            check(f"{name}: marks detail section rendered", "Marks Detail" in html)
         except Exception as e:
             check(f"{name}: pipeline runs (ERROR: {e})", False)
 

@@ -175,6 +175,7 @@ def assemble_report(data):
         "trend": build_trend_section(data),
         "credits": build_credits_section(data),
         "course_history": build_course_history(data),
+        "marks_breakdown": build_marks_breakdown(data),
     }
 
 
@@ -245,3 +246,54 @@ def build_course_history(data):
                 "status": "taken" if posted else "in_progress",
             })
     return history
+
+
+# ---------------------------------------------------------------------------
+# PER-ASSESSMENT MARKS BREAKDOWN — mirrors the portal's "View My Assignments".
+# BUITEMS scheme: Mid-Term out of 25, Final out of 50, Sessional out of 25.
+# ---------------------------------------------------------------------------
+MARKS_SCHEME = {"mid": 25, "final": 50, "sessional": 25}
+
+
+def course_marks_breakdown(course):
+    """Return the per-assessment breakdown for one course, each component with
+    its obtained marks, maximum, and percentage. Returns None for components not
+    yet posted so the UI can show a dash rather than a fake zero."""
+    out = []
+    for key, max_marks in (("mid", 25), ("final", 50), ("sessional", 25)):
+        obtained = course.get(key)
+        posted = isinstance(obtained, (int, float))
+        out.append({
+            "component": {"mid": "Mid-Term", "final": "Final",
+                          "sessional": "Sessional"}[key],
+            "obtained": obtained if posted else None,
+            "max": max_marks,
+            "percent": round(obtained / max_marks * 100) if posted and max_marks else None,
+        })
+    return out
+
+
+def build_marks_breakdown(data):
+    """For every course across all semesters, attach a per-assessment breakdown.
+    Grouped by semester so the UI can present it under each semester."""
+    semesters = []
+    for sem_id in sorted(data.get("semesters", {}),
+                         key=lambda s: int(s) if s.isdigit() else 0):
+        sem = data["semesters"][sem_id]
+        courses = []
+        for c in sem.get("courses", []):
+            posted = c.get("final") is not None and c.get("mid") is not None
+            courses.append({
+                "code": c.get("code", ""),
+                "title": c.get("title", c.get("code", "Course")),
+                "credit_hours": c.get("credit_hours", 0),
+                "total": total_marks(c) if posted else None,
+                "grade": marks_to_grade(total_marks(c)) if posted else None,
+                "breakdown": course_marks_breakdown(c),
+            })
+        semesters.append({
+            "semester": sem_id,
+            "term": sem.get("term", ""),
+            "courses": courses,
+        })
+    return {"scheme": MARKS_SCHEME, "semesters": semesters}

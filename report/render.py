@@ -135,6 +135,64 @@ def _suggestion_items(suggestions):
     return "".join(out)
 
 
+def _marks_detail(marks_breakdown):
+    """Expandable per-course marks breakdown (Mid / Final / Sessional vs max).
+    Mirrors the portal's 'View My Assignments'. Uses native <details> so each
+    course expands on click with no JavaScript. Older-Python-safe (plain concat)."""
+    # component colour by percentage
+    def _bar(component):
+        pct = component["percent"]
+        if pct is None:
+            return ('<div class="md-row"><span class="md-lbl">'
+                    + _esc(component["component"]) + '</span>'
+                    '<span class="md-track"></span>'
+                    '<span class="md-val">' + EM_DASH + '</span></div>')
+        if pct >= 80:
+            color = "var(--green)"
+        elif pct >= 60:
+            color = "var(--blue)"
+        else:
+            color = "var(--red)"
+        return ('<div class="md-row"><span class="md-lbl">'
+                + _esc(component["component"]) + '</span>'
+                '<span class="md-track"><span class="md-fill" style="width:'
+                + str(pct) + '%;background:' + color + '"></span></span>'
+                '<span class="md-val num">' + _esc(component["obtained"])
+                + '/' + _esc(component["max"]) + '</span></div>')
+
+    sections = []
+    # newest semester first, only semesters with at least one posted course
+    sems = sorted(marks_breakdown["semesters"],
+                  key=lambda x: int(x["semester"]) if str(x["semester"]).isdigit() else 0,
+                  reverse=True)
+    for s in sems:
+        posted_courses = [c for c in s["courses"] if c["total"] is not None]
+        if not posted_courses:
+            continue
+        course_blocks = []
+        for c in posted_courses:
+            bars = "".join(_bar(b) for b in c["breakdown"])
+            term = ' &middot; ' + _esc(s["term"]) if s["term"] else ""
+            course_blocks.append(
+                '<details class="md-course"><summary>'
+                '<span class="md-title">' + _esc(c["title"]) + '</span>'
+                '<span class="md-summary"><span class="md-total num">'
+                + _esc(c["total"]) + '/100</span>'
+                '<span class="chip">' + _esc(c["grade"]) + '</span></span>'
+                '</summary><div class="md-body">' + bars + '</div></details>'
+            )
+        sections.append(
+            '<div class="md-sem"><div class="md-sem-h">Semester '
+            + _esc(s["semester"]) + (' <span class="muted">&middot; ' + _esc(s["term"])
+            + '</span>' if s["term"] else "") + '</div>'
+            + "".join(course_blocks) + '</div>'
+        )
+    if not sections:
+        return ('<div class="card"><p class="muted" style="font-size:13px">'
+                'Detailed marks appear here once results are posted.</p></div>')
+    return "".join(sections)
+
+
 # ---------------------------------------------------------------------------
 # Main render
 # ---------------------------------------------------------------------------
@@ -345,6 +403,22 @@ def render_report(report, intelligence):
   .sem-h .t small{{color:var(--muted);font-weight:400;font-family:'Inter'}}
   .sem-gpa{{font-family:'Sora';font-weight:700;font-size:12px;padding:5px 11px;border-radius:8px}}
   .sem-gpa.done{{background:var(--navy);color:#fff}}.sem-gpa.prog{{background:var(--gold-soft);color:#a5761a}}
+  .md-sem{{margin-bottom:16px}}
+  .md-sem-h{{font-family:'Sora';font-weight:600;font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);margin:0 4px 8px}}
+  .md-course{{background:var(--card);border:1px solid var(--line);border-radius:12px;margin-bottom:8px;box-shadow:var(--shadow);overflow:hidden}}
+  .md-course summary{{list-style:none;cursor:pointer;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;gap:12px;user-select:none}}
+  .md-course summary::-webkit-details-marker{{display:none}}
+  .md-course summary::after{{content:"\\203A";color:var(--muted);font-size:18px;transition:transform .2s;margin-left:4px}}
+  .md-course[open] summary::after{{transform:rotate(90deg)}}
+  .md-title{{font-weight:500;font-size:13.5px;color:#2c3d52;flex:1}}
+  .md-summary{{display:flex;align-items:center;gap:10px}}
+  .md-total{{font-family:'Sora';font-weight:700;font-size:13px;color:var(--navy)}}
+  .md-body{{padding:4px 16px 16px;border-top:1px solid var(--line)}}
+  .md-row{{display:grid;grid-template-columns:76px 1fr auto;gap:10px;align-items:center;padding:6px 0;font-size:12.5px}}
+  .md-lbl{{color:var(--muted)}}
+  .md-track{{height:7px;background:var(--line);border-radius:20px;overflow:hidden}}
+  .md-fill{{display:block;height:100%;border-radius:20px}}
+  .md-val{{font-variant-numeric:tabular-nums;color:var(--ink);font-weight:600;min-width:48px;text-align:right}}
   .tips{{list-style:none;display:flex;flex-direction:column;gap:11px}}
   .tips li{{display:flex;gap:12px;font-size:13.5px;color:#2c3d52;align-items:flex-start}}
   .tips .n{{width:22px;height:22px;border-radius:7px;background:var(--blue-soft);color:var(--blue);font-family:'Sora';font-weight:700;font-size:11px;display:grid;place-items:center;flex-shrink:0;margin-top:1px}}
@@ -418,6 +492,10 @@ def render_report(report, intelligence):
 
   <div class="lbl rise d6"><span class="dot"></span><b>Semester Breakdown</b><span class="rule"></span></div>
   <div class="rise d6">{_semester_cards(report["semesters"])}</div>
+
+  <div class="lbl rise d7"><span class="dot"></span><b>Marks Detail</b><span class="rule"></span></div>
+  <p class="muted" style="font-size:12.5px;margin:0 4px 12px">Tap a course to see how each grade was composed (Mid-Term 25 &middot; Final 50 &middot; Sessional 25).</p>
+  <div class="rise d7">{_marks_detail(report["marks_breakdown"])}</div>
 
   <div class="lbl rise d7"><span class="dot"></span><b>What to do next</b><span class="rule"></span></div>
   <div class="card rise d7"><ul class="tips">{_suggestion_items(intelligence["suggestions"])}</ul></div>
