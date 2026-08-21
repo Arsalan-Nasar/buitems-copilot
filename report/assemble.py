@@ -185,26 +185,52 @@ def assemble_report(data):
 # grade-points / units. It also shows course status (Taken / In Progress).
 # ---------------------------------------------------------------------------
 
-# BUITEMS BS IT total credit hours to graduate. This is a CONFIGURABLE estimate
-# — set it to the exact number from the official Scheme of Studies once confirmed.
-# Kept here as the single place to change it.
-DEGREE_TOTAL_CREDITS = 133   # ESTIMATE — confirm against BUITEMS scheme of studies
+# Credit-hour totals to graduate, by program LEVEL (HEC Pakistan standard).
+# These are CONFIGURABLE estimates — confirm each against BUITEMS's official
+# Scheme of Studies. MS/PhD use very different structures from BS:
+#   BS  : ~124-136 credit hours (undergraduate)
+#   MS  : ~30 credit hours (24 coursework + 6 thesis)
+#   PhD : ~18 credit hours coursework, then research/dissertation (not credit-driven)
+DEGREE_TOTAL_CREDITS = 133   # BS — ESTIMATE, confirm against BUITEMS scheme
+MS_TOTAL_CREDITS = 30        # MS/MPhil — HEC standard
+PHD_COURSEWORK_CREDITS = 18  # PhD coursework phase — HEC minimum
+
+
+def detect_program_level(program):
+    """Classify a program string as 'phd', 'ms', or 'bs' (default).
+    Used to pick the right degree-credit total and messaging."""
+    p = (program or "").lower()
+    if "phd" in p or "ph.d" in p or "doctor" in p:
+        return "phd"
+    if (p.startswith("ms") or p.startswith("m.s") or "mphil" in p or "m.phil" in p
+            or p.startswith("master") or " ms " in p or "msc" in p or "m.sc" in p
+            or p.startswith("mba") or "m.e" in p or p.startswith("me ")):
+        return "ms"
+    return "bs"
 
 
 def build_credits_section(data, total_required=None):
-    """Credit-hour totals and degree progress.
+    """Credit-hour totals and degree progress, aware of program LEVEL.
 
     completed  = credits from courses with a final grade posted
     in_progress = credits from current/unfinished courses
 
-    total_required scales with program length: a 5-year (10-semester) program
-    needs proportionally more credits than a 4-year (8-semester) one. Both remain
-    ESTIMATES until confirmed against the official Scheme of Studies.
+    BS scales with program length (4-yr vs 5-yr). MS uses the ~30-credit standard.
+    PhD is research-based: coursework is a small phase and the degree isn't
+    credit-driven, so progress is flagged as coursework-only (the UI can soften or
+    hide the bar). All totals remain ESTIMATES until confirmed.
     """
+    level = detect_program_level(data.get("program"))
+
     if total_required is None:
-        program_length = data.get("program_length") or 8
-        # ~16.6 credits/semester * number of semesters (rounded to a tidy total)
-        total_required = round(DEGREE_TOTAL_CREDITS * (program_length / 8))
+        if level == "phd":
+            total_required = PHD_COURSEWORK_CREDITS
+        elif level == "ms":
+            total_required = MS_TOTAL_CREDITS
+        else:
+            program_length = data.get("program_length") or 8
+            total_required = round(DEGREE_TOTAL_CREDITS * (program_length / 8))
+
     completed = 0
     in_progress = 0
     for sem in data.get("semesters", {}).values():
@@ -223,7 +249,9 @@ def build_credits_section(data, total_required=None):
         "total_required": total_required,
         "remaining": max(0, total_required - completed),
         "percent": pct,
-        "is_estimate": True,   # flag so the UI can label it honestly
+        "is_estimate": True,       # honest labelling in the UI
+        "level": level,            # 'bs' | 'ms' | 'phd'
+        "coursework_only": level == "phd",  # PhD: coursework phase, not full degree
     }
 
 

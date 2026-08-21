@@ -136,8 +136,34 @@ FRESH = {
     "schedule": [],
 }
 
+
+MS_STUDENT = {
+    "student_id": "MS01", "name": "MS Student",
+    "program": "MS Computer Science", "current_semester": 2,
+    "program_length": 4, "graduated": False,
+    "semesters": {
+        "1": _sem("Fall 2024", [_A(3), _A(3), _B(3)]),
+    },
+    "fees": [{"term": "Fall 2024", "total": 80000, "paid": 80000}],
+    "attendance": [{"code": "X", "title": "Advanced Algorithms", "present": 28, "total": 30}],
+    "schedule": [],
+}
+
+PHD_STUDENT = {
+    "student_id": "PHD01", "name": "PhD Student",
+    "program": "PhD Computer Science", "current_semester": 2,
+    "program_length": 6, "graduated": False,
+    "semesters": {
+        "1": _sem("Fall 2024", [_A(3), _A(3)]),
+    },
+    "fees": [{"term": "Fall 2024", "total": 100000, "paid": 100000}],
+    "attendance": [],
+    "schedule": [],
+}
+
 ALL_STUDENTS = {
     "probation": PROBATION, "warning": WARNING, "good": GOOD, "honors": HONORS,
     "graduated": GRADUATED, "first_semester": FIRST_SEMESTER,
     "five_year": FIVE_YEAR, "fresh": FRESH,
+    "ms": MS_STUDENT, "phd": PHD_STUDENT,
 }

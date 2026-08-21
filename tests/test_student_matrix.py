@@ -99,6 +99,22 @@ def run():
           fresh_intel["health_score"]["band"] != "At Risk")
     check("fresh: still produces suggestions", len(fresh_intel["suggestions"]) > 0)
 
+    # ---- 8b. MS / PhD graduate programs use correct credit totals ----
+    ms_report, _, _ = _pipeline(ALL_STUDENTS["ms"])
+    check("ms: credit total is 30 (not undergrad)",
+          ms_report["credits"]["total_required"] == 30)
+    check("ms: level detected as ms", ms_report["credits"]["level"] == "ms")
+    check("ms: not coursework_only", ms_report["credits"]["coursework_only"] is False)
+
+    phd_report, _, phd_html = _pipeline(ALL_STUDENTS["phd"])
+    check("phd: credit total is 18 coursework",
+          phd_report["credits"]["total_required"] == 18)
+    check("phd: level detected as phd", phd_report["credits"]["level"] == "phd")
+    check("phd: flagged coursework_only", phd_report["credits"]["coursework_only"] is True)
+    check("phd: UI says Coursework Progress", "Coursework Progress" in phd_html)
+    check("phd: UI explains research-based",
+          "research and dissertation" in phd_html)
+
     # ---- 9. XSS safety holds for every student type ----
     import re
     for name, data in ALL_STUDENTS.items():

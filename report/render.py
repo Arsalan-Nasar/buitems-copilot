@@ -175,6 +175,25 @@ def _suggestion_items(suggestions):
     return "".join(out)
 
 
+# ---------------------------------------------------------------------------
+# A short original reflection (written by us, not scripture) that carries the
+# spirit of seeking knowledge, effort with trust, and hope. Anchored by the
+# well-known du'a "Rabbi zidni ilma" (My Lord, increase me in knowledge).
+# Deliberately NOT a direct Quran/Hadith quote to keep it appropriate and safe
+# for an official university tool.
+# ---------------------------------------------------------------------------
+def _islamic_reminder():
+    return (
+        '<div class="ir-card glow rise">'
+        '<div class="ir-arabic">\u0631\u0628\u0651\u0650 \u0632\u0650\u062f\u0652\u0646\u0650\u064a \u0639\u0650\u0644\u0652\u0645\u064b\u0627</div>'
+        '<div class="ir-translit">Rabbi zidni \u02bfilma \u2014 \u201cMy Lord, increase me in knowledge.\u201d</div>'
+        '<div class="ir-quote">Give your effort and trust your Lord \u2014 for He suffices '
+        'the one who relies on Him, He grants the one who seeks, and after every '
+        'hardship, He brings ease.</div>'
+        '</div>'
+    )
+
+
 def _marks_detail(marks_breakdown):
     """Expandable per-course marks breakdown (Mid / Final / Sessional vs max).
     Mirrors the portal's 'View My Assignments'. Uses native <details> so each
@@ -238,15 +257,25 @@ def _marks_detail(marks_breakdown):
 # ---------------------------------------------------------------------------
 def _degree_progress(credits):
     """The degree-completion centerpiece — highlighted as a marketing moment
-    (navy/blue gradient, gold fill, glowing edge). Administration loves a
-    completion metric, and it's visually the proudest card on the page."""
+    (navy/blue gradient, gold fill, glowing edge). Adapts wording to the program
+    level: a BS/MS shows progress toward the degree; a PhD shows the coursework
+    phase (since a doctorate is research-based, not credit-driven)."""
     pct = credits["percent"]
     est = " (estimated)" if credits.get("is_estimate") else ""
+    if credits.get("coursework_only"):
+        heading = "Coursework Progress"
+        caption = (str(credits["completed"]) + " of " + str(credits["total_required"])
+                   + " coursework credit hours" + est
+                   + " \u2014 the doctorate is completed through research and dissertation")
+    else:
+        heading = "Degree Progress"
+        caption = (str(credits["completed"]) + " of " + str(credits["total_required"])
+                   + " credit hours toward your degree" + est)
     return (
-        f'<div class="lbl rise d4" id="progress"><span class="dot"></span><b>Degree Progress</b><span class="rule"></span></div>'
+        f'<div class="lbl rise d4" id="progress"><span class="dot"></span><b>{heading}</b><span class="rule"></span></div>'
         f'<div class="card dp-hero glow rise d4">'
         f'<div class="dp-top"><span class="dp-pct num">{_esc(pct)}%</span>'
-        f'<span class="dp-cap">{_esc(credits["completed"])} of {_esc(credits["total_required"])} credit hours toward your degree{est}</span></div>'
+        f'<span class="dp-cap">{_esc(caption)}</span></div>'
         f'<div class="dp-track"><span class="dp-fill" style="--w:{_esc(pct)}%"></span></div>'
         f'<div class="dp-legend">'
         f'<span><b class="num">{_esc(credits["completed"])}</b> completed</span>'
@@ -329,7 +358,7 @@ def render_report(report, intelligence):
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Academic Report {EM_DASH} {_esc(st["name"])}</title>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=Amiri:wght@400;700&display=swap');
   *{{box-sizing:border-box;margin:0;padding:0}}
   :root{{
     --navy:#12227a;--royal:#1e3a9e;--blue:#2b4ba8;--blue-br:#3f7fd6;--blue-soft:#e9eefb;
@@ -359,10 +388,9 @@ def render_report(report, intelligence):
     border-bottom:1px solid var(--line)}}
   .nav-in{{max-width:840px;margin:0 auto;padding:11px 20px;display:flex;align-items:center;gap:16px}}
   .nav-brand{{display:flex;align-items:center;gap:9px;flex-shrink:0}}
-  .nav-mark{{width:30px;height:30px;border-radius:8px;background:linear-gradient(140deg,var(--royal),var(--navy));
-    display:grid;place-items:center;position:relative;overflow:hidden}}
-  .nav-mark span{{color:var(--gold-lt);font-family:'Poppins';font-weight:700;font-size:15px;z-index:1}}
-  .nav-mark::after{{content:"";position:absolute;inset:0;background:radial-gradient(circle at 32% 22%,rgba(232,184,75,.55),transparent 62%)}}
+  .nav-mark{{width:34px;height:34px;border-radius:50%;overflow:hidden;flex-shrink:0;
+    box-shadow:0 1px 4px rgba(10,37,64,.18)}}
+  .nav-mark img{{width:100%;height:100%;object-fit:cover;display:block}}
   .nav-title{{font-family:'Poppins';font-weight:600;font-size:14px;letter-spacing:-.01em}}
   .nav-links{{display:flex;gap:4px;margin-left:auto;overflow-x:auto;scrollbar-width:none}}
   .nav-links::-webkit-scrollbar{{display:none}}
@@ -377,6 +405,7 @@ def render_report(report, intelligence):
     padding:26px 28px;color:#fff;position:relative;overflow:hidden;box-shadow:var(--shadow-lg)}}
   .hero::before{{content:"";position:absolute;top:-45%;right:-8%;width:300px;height:300px;
     background:radial-gradient(circle,rgba(201,150,46,.20),transparent 62%)}}
+  .hero-markhor{{position:absolute;right:-30px;bottom:-40px;width:260px;height:260px;object-fit:contain;opacity:.10;z-index:0;pointer-events:none;filter:brightness(2)}}
   .hero-inner{{position:relative;z-index:1;display:grid;grid-template-columns:auto 1fr;gap:28px;align-items:center}}
   .ring-wrap{{width:120px;height:120px;position:relative}}
   .ring-num{{position:absolute;inset:0;display:grid;place-items:center;text-align:center}}
@@ -528,6 +557,25 @@ def render_report(report, intelligence):
   .tips li{{display:flex;gap:11px;font-size:13px;color:#33455c;align-items:flex-start}}
   .tips .n{{width:21px;height:21px;border-radius:6px;background:var(--blue-soft);color:var(--blue);font-family:'Poppins';font-weight:700;font-size:10.5px;display:grid;place-items:center;flex-shrink:0;margin-top:1px}}
 
+  /* original reflection card (Rabbi zidni ilma) */
+  .ir-card{{background:linear-gradient(160deg,#0b1f5c,#1e3a9e);border:none;border-radius:18px;
+    padding:30px 28px;margin-top:34px;color:#fff;position:relative;overflow:hidden;box-shadow:var(--shadow-lg);text-align:center}}
+  .ir-card::before{{content:'';position:absolute;top:-30%;left:50%;transform:translateX(-50%);width:280px;height:280px;
+    background:radial-gradient(circle,rgba(244,184,66,.16),transparent 62%)}}
+  .ir-arabic{{position:relative;z-index:1;font-family:'Amiri',serif;font-size:34px;font-weight:700;
+    color:var(--gold-lt);line-height:1.4;margin-bottom:10px;direction:rtl}}
+  .ir-translit{{position:relative;z-index:1;font-size:12.5px;color:rgba(255,255,255,.7);font-style:italic;
+    margin-bottom:16px;letter-spacing:.02em}}
+  .ir-quote{{position:relative;z-index:1;font-size:14.5px;line-height:1.7;font-weight:400;
+    color:rgba(255,255,255,.94);max-width:560px;margin:0 auto}}
+  /* ZIRA brand footer (real logo) */
+  .brandfoot{{display:flex;align-items:center;justify-content:center;gap:18px;margin-top:24px;
+    padding:20px 24px;background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);flex-wrap:wrap}}
+  .bf-logo{{height:34px;width:auto;object-fit:contain}}
+  .bf-line{{width:1px;height:34px;background:var(--line)}}
+  .bf-txt{{text-align:left}}
+  .bf-txt b{{display:block;font-family:'Poppins';font-weight:600;font-size:13.5px;color:var(--ink);line-height:1.2}}
+  .bf-txt small{{font-size:11.5px;color:var(--muted)}}
   .foot{{text-align:center;margin-top:36px;padding-top:18px;border-top:1px solid var(--line);font-size:11.5px;color:var(--muted);display:flex;align-items:center;justify-content:center;gap:8px}}
 
   .rise{{opacity:0;transform:translateY(14px);animation:rise .65s cubic-bezier(.22,1,.36,1) forwards}}
@@ -553,7 +601,7 @@ def render_report(report, intelligence):
 </style></head>
 <body>
   <nav class="nav"><div class="nav-in">
-    <div class="nav-brand"><div class="nav-mark"><svg viewBox="0 0 48 48" width="20" height="20" fill="none" style="z-index:1"><path d="M14 40c-1-6-2-10-1-15 .6-3 2-5 4-6-1-3-3-5-4-8-.5-1.5 0-3 1-2.5 1.5.8 3 3 4.5 5.5 1-1 2.5-1.5 4-1.5s3 .5 4 1.5c1.5-2.5 3-4.7 4.5-5.5 1-.5 1.5 1 1 2.5-1 3-3 5-4 8 2 1 3.4 3 4 6 1 5 0 9-1 15" stroke="#f4b842" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="20" cy="24" r="1.3" fill="#f4b842"/><circle cx="28" cy="24" r="1.3" fill="#f4b842"/></svg></div><span class="nav-title">Academic Report</span></div>
+    <div class="nav-brand"><div class="nav-mark"><img src="/static/markhor2.png" alt="Markhor" width="34" height="34"></div><span class="nav-title">Academic Report</span></div>
     <div class="nav-links">
       <a href="#priorities">Priorities</a>
       <a href="#trend">GPA Trend</a>
@@ -566,6 +614,7 @@ def render_report(report, intelligence):
   <div class="wrap">
 
   <div class="hero rise d1">
+    <img src="/static/markhor2.png" alt="" class="hero-markhor" aria-hidden="true">
     <div class="hero-inner">
       <div class="ring-wrap">
         <svg width="120" height="120" viewBox="0 0 120 120" style="transform:rotate(-90deg)">
@@ -621,6 +670,14 @@ def render_report(report, intelligence):
 
   <div class="lbl rise d7" id="next"><span class="dot"></span><b>What to do next</b><span class="rule"></span></div>
   <div class="card rise d7"><ul class="tips">{_suggestion_items(intelligence["suggestions"])}</ul></div>
+
+  {_islamic_reminder()}
+
+  <div class="brandfoot rise">
+    <img src="/static/zira-logo.png" alt="ZIRA Technologies" class="bf-logo">
+    <div class="bf-line"></div>
+    <div class="bf-txt"><b>Developed by Arsalan Nasar</b><small>ZIRA Technologies &middot; AI Solutions</small></div>
+  </div>
 
   <div class="foot"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>Generated on your device &middot; No data leaves the university network</div>
 
