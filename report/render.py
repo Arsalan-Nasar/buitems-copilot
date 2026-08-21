@@ -100,32 +100,72 @@ def _recovery_note(recovery):
     return "".join(parts)
 
 
-def _semester_cards(semesters):
-    # newest first, and only show semesters that have courses
-    out = []
-    for s in sorted(semesters, key=lambda x: int(x["semester"]) if str(x["semester"]).isdigit() else 0,
+def _combined_semesters(report):
+    """ONE combined section (per the layout note): each semester card lists its
+    courses, and each course expands to show its Mid/Final/Sessional breakdown.
+    Rendered two-per-row on wide screens. Merges the old Semester Breakdown +
+    Marks Detail into a single, cleaner block."""
+    semesters = report["semesters"]
+    # map semester_id -> its marks breakdown (per-course component detail)
+    mb_by_sem = {}
+    for msem in report["marks_breakdown"]["semesters"]:
+        by_code = {}
+        for c in msem["courses"]:
+            by_code[(c["code"], c["title"])] = c["breakdown"]
+        mb_by_sem[str(msem["semester"])] = by_code
+
+    def _bar(comp):
+        pct = comp["percent"]
+        if pct is None:
+            return ('<div class="md-row"><span class="md-lbl">' + _esc(comp["component"])
+                    + '</span><span class="md-track"></span><span class="md-val">'
+                    + EM_DASH + '</span></div>')
+        color = "var(--green)" if pct >= 80 else ("var(--blue)" if pct >= 60 else "var(--red)")
+        return ('<div class="md-row"><span class="md-lbl">' + _esc(comp["component"])
+                + '</span><span class="md-track"><span class="md-fill" style="width:'
+                + str(pct) + '%;background:' + color + '"></span></span>'
+                '<span class="md-val num">' + _esc(comp["obtained"]) + '/' + _esc(comp["max"])
+                + '</span></div>')
+
+    cards = []
+    for s in sorted(semesters,
+                    key=lambda x: int(x["semester"]) if str(x["semester"]).isdigit() else 0,
                     reverse=True):
         if not s["courses"]:
             continue
-        rows = ""
+        sem_marks = mb_by_sem.get(str(s["semester"]), {})
+        course_rows = []
         for c in s["courses"]:
             grade = c["grade"]
-            if grade is None:
-                chip = f'<span class="chip" style="background:var(--line);color:var(--muted)">{EM_DASH}</span>'
+            posted = grade is not None
+            chip = (f'<span class="chip">{_esc(grade)}</span>' if posted
+                    else f'<span class="chip" style="background:var(--line);color:var(--muted)">{EM_DASH}</span>')
+            bd = sem_marks.get((c["code"], c["title"]))
+            if posted and bd:
+                bars = "".join(_bar(b) for b in bd)
+                course_rows.append(
+                    '<details class="md-course"><summary>'
+                    '<span class="md-title">' + _esc(c["title"]) + '</span>'
+                    '<span class="md-summary">' + chip + '</span></summary>'
+                    '<div class="md-body">' + bars + '</div></details>'
+                )
             else:
-                chip = f'<span class="chip">{_esc(grade)}</span>'
-            rows += f'<tr><td>{_esc(c["title"])}</td><td class="r">{chip}</td></tr>'
+                course_rows.append(
+                    '<div class="md-course static"><div class="md-flat">'
+                    '<span class="md-title">' + _esc(c["title"]) + '</span>' + chip
+                    + '</div></div>'
+                )
         if s["status"] == "complete" and s["gpa"] is not None:
             gpa_badge = f'<span class="sem-gpa done num">GPA {_esc(s["gpa"])}</span>'
         else:
             gpa_badge = '<span class="sem-gpa prog">In progress</span>'
-        term = f' <small>&middot; {_esc(s["term"])}</small>' if s["term"] else ""
-        out.append(
-            f'<div class="sem"><div class="sem-h">'
-            f'<span class="t">Semester {_esc(s["semester"])}{term}</span>{gpa_badge}</div>'
-            f'<table class="tbl"><tbody>{rows}</tbody></table></div>'
+        term = f'<small>&middot; {_esc(s["term"])}</small>' if s["term"] else ""
+        cards.append(
+            '<div class="sem"><div class="sem-h">'
+            '<span class="t">Semester ' + _esc(s["semester"]) + ' ' + term + '</span>'
+            + gpa_badge + '</div><div class="sem-courses">' + "".join(course_rows) + '</div></div>'
         )
-    return "".join(out)
+    return '<div class="sem-grid">' + "".join(cards) + '</div>'
 
 
 def _suggestion_items(suggestions):
@@ -197,14 +237,16 @@ def _marks_detail(marks_breakdown):
 # Main render
 # ---------------------------------------------------------------------------
 def _degree_progress(credits):
-    """A degree-completion progress bar (administration loves completion metrics)."""
+    """The degree-completion centerpiece — highlighted as a marketing moment
+    (navy/blue gradient, gold fill, glowing edge). Administration loves a
+    completion metric, and it's visually the proudest card on the page."""
     pct = credits["percent"]
     est = " (estimated)" if credits.get("is_estimate") else ""
     return (
-        f'<div class="lbl rise d4"><span class="dot"></span><b>Degree Progress</b><span class="rule"></span></div>'
-        f'<div class="card rise d4">'
+        f'<div class="lbl rise d4" id="progress"><span class="dot"></span><b>Degree Progress</b><span class="rule"></span></div>'
+        f'<div class="card dp-hero glow rise d4">'
         f'<div class="dp-top"><span class="dp-pct num">{_esc(pct)}%</span>'
-        f'<span class="dp-cap">{_esc(credits["completed"])} of {_esc(credits["total_required"])} credit hours{est}</span></div>'
+        f'<span class="dp-cap">{_esc(credits["completed"])} of {_esc(credits["total_required"])} credit hours toward your degree{est}</span></div>'
         f'<div class="dp-track"><span class="dp-fill" style="--w:{_esc(pct)}%"></span></div>'
         f'<div class="dp-legend">'
         f'<span><b class="num">{_esc(credits["completed"])}</b> completed</span>'
@@ -287,169 +329,251 @@ def render_report(report, intelligence):
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Academic Report {EM_DASH} {_esc(st["name"])}</title>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap');
   *{{box-sizing:border-box;margin:0;padding:0}}
   :root{{
-    --navy:#0a2540;--royal:#123a63;--blue:#1e5aa8;--blue-soft:#e7eef8;
-    --gold:#c9962e;--gold-lt:#f5c451;--gold-soft:#faf3e0;
-    --bg:#f7f9fc;--card:#fff;--ink:#0a2540;--muted:#6b7a90;
-    --line:#e4eaf2;--green:#1f9d6b;--amber:#dd8a1a;--red:#d0553f;
-    --shadow:0 1px 2px rgba(10,37,64,.04),0 8px 24px rgba(10,37,64,.06);
+    --navy:#12227a;--royal:#1e3a9e;--blue:#2b4ba8;--blue-br:#3f7fd6;--blue-soft:#e9eefb;
+    --gold:#e29a2e;--gold-lt:#f4b842;--gold-deep:#c47f1e;--gold-soft:#fdf3df;
+    --bg:#f6f8fb;--card:#fff;--ink:#12263f;--muted:#66788f;
+    --line:#e6ecf3;--green:#1f9d6b;--green-soft:#e5f5ee;--amber:#dd8a1a;--yellow-soft:#fcf4dc;--red:#d0553f;
+    --shadow:0 1px 2px rgba(10,37,64,.03),0 4px 16px rgba(10,37,64,.05);
+    --shadow-lg:0 8px 30px rgba(10,37,64,.10);
+    --r:14px;
   }}
-  body{{background:var(--bg);color:var(--ink);font-family:'Inter',system-ui,sans-serif;line-height:1.5;-webkit-font-smoothing:antialiased}}
-  .num{{font-variant-numeric:tabular-nums}}
+  /* animated glowing blue+gold edges (BUITEMS) */
+  .glow{{position:relative}}
+  .glow::before{{content:'';position:absolute;inset:-2px;border-radius:inherit;z-index:-1;
+    background:linear-gradient(120deg,var(--blue-br),var(--gold-lt),var(--blue-br),var(--gold-lt));
+    background-size:300% 300%;animation:glowmove 6s ease infinite;
+    filter:blur(7px);opacity:.35}}
+  .glow{{box-shadow:0 0 0 1px rgba(43,75,168,.10)}}
+  @keyframes glowmove{{0%{{background-position:0% 50%}}50%{{background-position:100% 50%}}100%{{background-position:0% 50%}}}}
+
+  body{{background:var(--bg);color:var(--ink);font-family:'Poppins',system-ui,-apple-system,sans-serif;font-size:13.5px;line-height:1.6;-webkit-font-smoothing:antialiased}}
+  .num{{font-variant-numeric:tabular-nums;font-feature-settings:"tnum"}}
+  .disp{{font-family:'Poppins',sans-serif}}
   .muted{{color:var(--muted)}}
-  .wrap{{max-width:940px;margin:0 auto;padding:20px 18px 60px}}
-  .brand{{display:flex;align-items:center;gap:12px;padding:14px 0 20px}}
-  .brand-mark{{width:38px;height:38px;border-radius:10px;background:linear-gradient(135deg,var(--royal),var(--navy));display:grid;place-items:center;box-shadow:var(--shadow);position:relative;overflow:hidden}}
-  .brand-mark::after{{content:"";position:absolute;inset:0;background:radial-gradient(circle at 30% 20%,rgba(245,196,81,.5),transparent 60%)}}
-  .brand-mark span{{color:var(--gold-lt);font-family:'Sora';font-weight:800;font-size:19px;z-index:1}}
-  .brand-txt b{{font-family:'Sora';font-weight:700;font-size:15px;letter-spacing:-.01em;display:block;line-height:1.15}}
-  .brand-txt small{{color:var(--muted);font-size:12px}}
-  .hero{{background:linear-gradient(135deg,var(--navy),var(--royal));border-radius:22px;padding:30px;color:#fff;position:relative;overflow:hidden;box-shadow:0 12px 40px rgba(10,37,64,.22)}}
-  .hero::before{{content:"";position:absolute;top:-40%;right:-10%;width:340px;height:340px;background:radial-gradient(circle,rgba(201,150,46,.22),transparent 65%)}}
-  .hero::after{{content:"";position:absolute;bottom:-60%;left:-15%;width:380px;height:380px;background:radial-gradient(circle,rgba(30,90,168,.35),transparent 65%)}}
-  .hero-inner{{position:relative;z-index:1;display:grid;grid-template-columns:auto 1fr;gap:32px;align-items:center}}
-  .hero-name{{font-family:'Sora';font-weight:600;font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--gold-lt);margin-bottom:4px}}
-  .hero-sub{{font-size:13px;color:rgba(255,255,255,.72);margin-bottom:22px}}
-  .band-lg{{font-family:'Sora';font-weight:800;font-size:34px;letter-spacing:-.02em;line-height:1;margin-bottom:16px}}
-  .band-lg small{{display:block;font-size:12px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.6);margin-top:8px;font-family:'Inter'}}
-  .ring-wrap{{width:172px;height:172px;position:relative}}
+
+  /* sticky top nav */
+  .nav{{position:sticky;top:0;z-index:50;background:rgba(255,255,255,.85);backdrop-filter:saturate(180%) blur(12px);
+    border-bottom:1px solid var(--line)}}
+  .nav-in{{max-width:840px;margin:0 auto;padding:11px 20px;display:flex;align-items:center;gap:16px}}
+  .nav-brand{{display:flex;align-items:center;gap:9px;flex-shrink:0}}
+  .nav-mark{{width:30px;height:30px;border-radius:8px;background:linear-gradient(140deg,var(--royal),var(--navy));
+    display:grid;place-items:center;position:relative;overflow:hidden}}
+  .nav-mark span{{color:var(--gold-lt);font-family:'Poppins';font-weight:700;font-size:15px;z-index:1}}
+  .nav-mark::after{{content:"";position:absolute;inset:0;background:radial-gradient(circle at 32% 22%,rgba(232,184,75,.55),transparent 62%)}}
+  .nav-title{{font-family:'Poppins';font-weight:600;font-size:14px;letter-spacing:-.01em}}
+  .nav-links{{display:flex;gap:4px;margin-left:auto;overflow-x:auto;scrollbar-width:none}}
+  .nav-links::-webkit-scrollbar{{display:none}}
+  .nav-links a{{font-size:12.5px;color:var(--muted);text-decoration:none;padding:6px 11px;border-radius:8px;
+    white-space:nowrap;transition:background .15s,color .15s;font-weight:500}}
+  .nav-links a:hover{{background:var(--blue-soft);color:var(--blue)}}
+
+  .wrap{{max-width:840px;margin:0 auto;padding:26px 20px 70px}}
+
+  /* hero — refined, calmer */
+  .hero{{background:linear-gradient(140deg,#0a2540 0%,#143a66 60%,#0d2d4f 100%);border-radius:20px;
+    padding:26px 28px;color:#fff;position:relative;overflow:hidden;box-shadow:var(--shadow-lg)}}
+  .hero::before{{content:"";position:absolute;top:-45%;right:-8%;width:300px;height:300px;
+    background:radial-gradient(circle,rgba(201,150,46,.20),transparent 62%)}}
+  .hero-inner{{position:relative;z-index:1;display:grid;grid-template-columns:auto 1fr;gap:28px;align-items:center}}
+  .ring-wrap{{width:120px;height:120px;position:relative}}
   .ring-num{{position:absolute;inset:0;display:grid;place-items:center;text-align:center}}
-  .ring-num b{{font-family:'Sora';font-weight:800;font-size:52px;line-height:1;letter-spacing:-.03em;color:#fff}}
-  .ring-num i{{font-style:normal;font-size:12px;color:rgba(255,255,255,.6);letter-spacing:.1em;margin-top:2px;display:block}}
-  .bd{{display:flex;flex-direction:column;gap:11px;margin-top:4px}}
-  .bd-row{{display:grid;grid-template-columns:96px 1fr auto;gap:12px;align-items:center;font-size:12.5px}}
-  .bd-row .lb{{color:rgba(255,255,255,.78)}}
-  .bd-track{{height:7px;background:rgba(255,255,255,.14);border-radius:20px;overflow:hidden}}
-  .bd-fill{{height:100%;border-radius:20px;background:linear-gradient(90deg,var(--gold),var(--gold-lt));width:0;transition:width 1.2s cubic-bezier(.22,1,.36,1) .3s}}
-  .bd-val{{color:#fff;font-weight:600;font-variant-numeric:tabular-nums;font-size:12px}}
-  .lbl{{display:flex;align-items:center;gap:9px;margin:30px 4px 13px}}
-  .lbl b{{font-family:'Sora';font-weight:600;font-size:12px;letter-spacing:.13em;text-transform:uppercase;color:var(--muted)}}
-  .lbl .dot{{width:6px;height:6px;border-radius:50%;background:var(--gold)}}
-  .lbl .rule{{flex:1;height:1px;background:var(--line)}}
-  .flags{{display:flex;flex-direction:column;gap:10px}}
-  .flag{{display:flex;gap:14px;align-items:flex-start;background:var(--card);border:1px solid var(--line);border-left-width:4px;border-radius:14px;padding:15px 17px;box-shadow:var(--shadow)}}
+  .ring-num b{{font-family:'Poppins';font-weight:700;font-size:34px;line-height:1;letter-spacing:-.02em;color:#fff}}
+  .ring-num i{{font-style:normal;font-size:10px;color:rgba(255,255,255,.55);letter-spacing:.08em;margin-top:1px;display:block}}
+  .hero-name{{font-family:'Poppins';font-weight:600;font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--gold-lt);margin-bottom:3px}}
+  .hero-sub{{font-size:12.5px;color:rgba(255,255,255,.68);margin-bottom:16px}}
+  .band-lg{{font-family:'Poppins';font-weight:700;font-size:22px;letter-spacing:-.01em;line-height:1.1;margin-bottom:3px}}
+  .band-lg small{{display:block;font-size:10px;font-weight:500;letter-spacing:.09em;text-transform:uppercase;color:rgba(255,255,255,.5);margin-top:5px;margin-bottom:15px;font-family:'Poppins'}}
+  .bd{{display:flex;flex-direction:column;gap:9px}}
+  .bd-row{{display:grid;grid-template-columns:88px 1fr auto;gap:12px;align-items:center;font-size:11.5px}}
+  .bd-row .lb{{color:rgba(255,255,255,.72)}}
+  .bd-track{{height:6px;background:rgba(255,255,255,.13);border-radius:20px;overflow:hidden}}
+  .bd-fill{{height:100%;border-radius:20px;background:linear-gradient(90deg,var(--gold),var(--gold-lt));width:0;transition:width 1.1s cubic-bezier(.22,1,.36,1) .3s}}
+  .bd-val{{color:#fff;font-weight:600;font-variant-numeric:tabular-nums;font-size:11px}}
+
+  /* section labels */
+  .lbl{{display:flex;align-items:center;gap:10px;margin:34px 2px 15px;scroll-margin-top:66px}}
+  .lbl b{{font-family:'Poppins';font-weight:700;font-size:15px;letter-spacing:-.01em;color:var(--royal);position:relative;padding-bottom:6px}}
+  .lbl b::after{{content:'';position:absolute;left:0;bottom:0;width:100%;height:2.5px;border-radius:2px;background:linear-gradient(90deg,var(--gold-lt),var(--gold),rgba(226,154,46,0))}}
+  .lbl .dot{{display:none}}
+  .lbl .rule{{flex:1;height:1px;background:var(--line);align-self:flex-end;margin-bottom:8px}}
+
+  /* priority flags */
+  .flags{{display:flex;flex-direction:column;gap:9px}}
+  .flag{{display:flex;gap:13px;align-items:flex-start;background:var(--card);border:1px solid var(--line);border-left-width:3px;border-radius:12px;padding:13px 15px;box-shadow:var(--shadow)}}
   .flag.red{{border-left-color:var(--red)}}.flag.amber{{border-left-color:var(--amber)}}.flag.green{{border-left-color:var(--green)}}
-  .flag-ico{{width:26px;height:26px;border-radius:8px;flex-shrink:0;display:grid;place-items:center;font-weight:700;font-size:14px;color:#fff;font-family:'Sora'}}
+  .flag-ico{{width:22px;height:22px;border-radius:7px;flex-shrink:0;display:grid;place-items:center;font-weight:700;font-size:12px;color:#fff;font-family:'Poppins'}}
   .flag.red .flag-ico{{background:var(--red)}}.flag.amber .flag-ico{{background:var(--amber)}}.flag.green .flag-ico{{background:var(--green)}}
-  .flag-tx{{font-size:13.5px;padding-top:3px;color:#2c3d52}}
-  .flag-tx b{{color:var(--ink)}}
-  .grid{{display:grid;gap:14px}}.g2{{grid-template-columns:1fr 1fr}}
-  .card{{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:20px;box-shadow:var(--shadow)}}
-  .card h3{{font-family:'Sora';font-weight:600;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:12px}}
-  .stat{{font-family:'Sora';font-weight:800;font-size:34px;letter-spacing:-.02em;line-height:1}}
-  .stat.sm{{font-size:26px}}
-  .stat-sub{{font-size:12.5px;color:var(--muted);margin-top:6px}}
-  .pill{{display:inline-block;font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;margin-top:10px;text-transform:capitalize}}
-  .dp-top{{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:12px}}
-  .dp-pct{{font-family:'Sora';font-weight:800;font-size:32px;letter-spacing:-.02em;color:var(--royal)}}
-  .dp-cap{{font-size:12.5px;color:var(--muted)}}
-  .dp-track{{height:12px;background:var(--line);border-radius:20px;overflow:hidden;margin-bottom:14px}}
-  .dp-fill{{display:block;height:100%;border-radius:20px;background:linear-gradient(90deg,var(--royal),var(--blue));width:0;transition:width 1.3s cubic-bezier(.22,1,.36,1) .4s}}
-  .dp-legend{{display:flex;gap:22px;font-size:12.5px;color:var(--muted)}}
-  .dp-legend b{{color:var(--ink);font-family:'Sora';font-weight:700;margin-right:4px}}
-  .pill.good{{background:var(--blue-soft);color:var(--blue)}}.pill.warn{{background:var(--gold-soft);color:#a5761a}}
-  .trend-card{{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:22px 20px 14px;box-shadow:var(--shadow)}}
-  .trend-head{{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px}}
-  .trend-head h3{{font-family:'Sora';font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}}
-  .trend-head .dir{{font-size:12.5px;font-weight:600}}
-  .trend-stats{{display:flex;gap:20px}}
+  .flag-tx{{font-size:13px;padding-top:2px;color:#33455c}}
+
+  /* cards + grid */
+  .grid{{display:grid;gap:12px}}.g2{{grid-template-columns:1fr 1fr}}
+  .card{{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:18px;box-shadow:var(--shadow)}}
+  .card h3{{font-family:'Poppins';font-weight:600;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:10px}}
+  .stat{{font-family:'Poppins';font-weight:700;font-size:28px;letter-spacing:-.01em;line-height:1}}
+  .stat.sm{{font-size:22px}}
+  .stat-sub{{font-size:12px;color:var(--muted);margin-top:5px}}
+  .pill{{display:inline-block;font-size:10.5px;font-weight:600;padding:3px 9px;border-radius:20px;margin-top:9px;text-transform:capitalize}}
+  .pill.good{{background:var(--blue-soft);color:var(--blue)}}.pill.warn{{background:var(--gold-soft);color:#9a6c14}}
+  .pill.gold{{background:var(--gold-soft);color:var(--gold-deep)}}
+  .cgpa-card{{border-top:3px solid var(--gold)}}
+  .cgpa-card .stat{{color:var(--royal)}}
+
+
+  /* ============ THE GPA TREND — the shareable centerpiece ============ */
+  .trend-card{{background:linear-gradient(160deg,#fff,#fbfcfe);border:1px solid var(--line);border-radius:18px;
+    padding:22px 22px 16px;box-shadow:var(--shadow-lg);position:relative;overflow:hidden}}
+  .trend-head{{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}}
+  .trend-stats{{display:flex;gap:22px}}
   .tstat{{display:flex;flex-direction:column;gap:2px}}
-  .tstat i{{font-style:normal;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}}
-  .tstat b{{font-family:'Sora';font-weight:700;font-size:15px;color:var(--navy)}}
-  .chart .chg{{font-family:'Sora';font-weight:600;font-size:11px}}
-  .chart .chg.up{{fill:var(--green)}}.chart .chg.down{{fill:var(--red)}}
-  .dl-btn{{margin-top:14px;width:100%;padding:11px;border:1px solid var(--line);background:var(--bg);
-    color:var(--royal);font-family:'Sora';font-weight:600;font-size:13px;border-radius:10px;cursor:pointer;
-    transition:background .2s,border-color .2s}}
-  .dl-btn:hover{{background:var(--blue-soft);border-color:var(--blue)}}
-  @media print{{
-    body{{background:#fff}}.wrap{{max-width:100%;padding:0}}
-    .rise{{opacity:1!important;transform:none!important}}
-    .dl-btn{{display:none}}.hero{{box-shadow:none}}
-    .card,.trend-card,.sem,.flag{{box-shadow:none;break-inside:avoid}}
-    .chart .line{{stroke-dashoffset:0!important}}.chart .dot,.chart .dv,.chart .chg,.area{{opacity:1!important}}
-  }}
+  .tstat i{{font-style:normal;font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}}
+  .tstat b{{font-family:'Poppins';font-weight:700;font-size:16px;color:var(--navy)}}
+  .dir{{font-size:12px;font-weight:600;display:inline-flex;align-items:center;gap:4px;padding:5px 11px;border-radius:20px;background:var(--bg)}}
+  .trend-wm{{position:absolute;right:18px;bottom:12px;font-family:'Poppins';font-weight:600;font-size:10px;
+    letter-spacing:.14em;text-transform:uppercase;color:var(--muted);opacity:.5}}
   svg.chart{{width:100%;height:auto;display:block;overflow:visible}}
   .chart .grid-l{{stroke:var(--line);stroke-width:1}}
-  .chart .ax{{fill:var(--muted);font-size:11px;font-family:'Inter'}}
+  .chart .ax{{fill:var(--muted);font-size:11px;font-family:'Poppins'}}
   .chart .area{{fill:url(#gGold);opacity:0}}
-  .chart .line{{fill:none;stroke:url(#gLine);stroke-width:3;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:1000;stroke-dashoffset:1000;animation:draw 1.6s cubic-bezier(.4,0,.2,1) .5s forwards}}
+  .chart .line{{fill:none;stroke:url(#gLine);stroke-width:3;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:1200;stroke-dashoffset:1200;animation:draw 1.7s cubic-bezier(.4,0,.2,1) .4s forwards}}
   @keyframes draw{{to{{stroke-dashoffset:0}}}}
   .chart .dot{{fill:#fff;stroke:var(--royal);stroke-width:3;opacity:0;animation:pop .4s ease forwards}}
-  .chart .dv{{fill:var(--navy);font-family:'Sora';font-weight:700;font-size:13px;text-anchor:middle;opacity:0;animation:pop .4s ease forwards}}
+  .chart .dv{{fill:var(--navy);font-family:'Poppins';font-weight:700;font-size:13px;text-anchor:middle;opacity:0;animation:pop .4s ease forwards}}
+  .chart .chg{{font-family:'Poppins';font-weight:600;font-size:10.5px}}
+  .chart .chg.up{{fill:var(--green)}}.chart .chg.down{{fill:var(--red)}}
   @keyframes pop{{to{{opacity:1}}}}
-  .sw{{display:flex;flex-direction:column;gap:9px}}
-  .sw-item{{display:flex;align-items:center;gap:11px}}
-  .sw-badge{{font-family:'Sora';font-weight:700;font-size:11px;min-width:38px;height:26px;padding:0 8px;border-radius:8px;display:grid;place-items:center}}
-  .sw-badge.up{{background:var(--blue-soft);color:var(--blue)}}.sw-badge.dn{{background:var(--gold-soft);color:#a5761a}}
-  .sw-item span{{font-size:13.5px;color:#2c3d52}}
+  .dl-btn{{margin-top:12px;width:100%;padding:12px;border:1px solid var(--line);background:var(--card);
+    color:var(--royal);font-family:'Poppins';font-weight:600;font-size:12.5px;border-radius:12px;cursor:pointer;transition:background .2s,border-color .2s;box-shadow:var(--shadow)}}
+  .dl-btn:hover{{background:var(--blue-soft);border-color:var(--blue)}}
+
+  /* degree progress */
+  .dp-hero{{background:linear-gradient(135deg,#12227a,#2b4ba8);color:#fff;border:none;position:relative;overflow:hidden}}
+  .dp-hero::before{{content:'';position:absolute;top:-40%;right:-6%;width:240px;height:240px;background:radial-gradient(circle,rgba(244,184,66,.28),transparent 62%)}}
+  .dp-hero .dp-pct{{color:var(--gold-lt)}}
+  .dp-hero .dp-cap{{color:rgba(255,255,255,.72)}}
+  .dp-hero .dp-track{{background:rgba(255,255,255,.16)}}
+  .dp-hero .dp-fill{{background:linear-gradient(90deg,var(--gold),var(--gold-lt))}}
+  .dp-hero .dp-legend{{color:rgba(255,255,255,.75)}}
+  .dp-hero .dp-legend b{{color:#fff}}
+  .dp-top{{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:11px}}
+  .dp-pct{{font-family:'Poppins';font-weight:700;font-size:28px;letter-spacing:-.01em;color:var(--royal)}}
+  .dp-cap{{font-size:12px;color:var(--muted)}}
+  .dp-track{{height:10px;background:var(--line);border-radius:20px;overflow:hidden;margin-bottom:12px}}
+  .dp-fill{{display:block;height:100%;border-radius:20px;background:linear-gradient(90deg,var(--royal),var(--blue));width:0;transition:width 1.3s cubic-bezier(.22,1,.36,1) .4s}}
+  .dp-legend{{display:flex;gap:20px;font-size:12px;color:var(--muted)}}
+  .dp-legend b{{color:var(--ink);font-family:'Poppins';font-weight:700;margin-right:4px}}
+
+  /* strengths / weaknesses */
+  .card.strengths{{border-top:3px solid var(--green)}}
+  .card.needsfocus{{border-top:3px solid var(--gold)}}
+  .card.strengths h3{{color:var(--green)}}
+  .card.needsfocus h3{{color:var(--gold-deep)}}
+  .sw{{display:flex;flex-direction:column;gap:8px}}
+  .sw-item{{display:flex;align-items:center;gap:10px}}
+  .sw-badge{{font-family:'Poppins';font-weight:700;font-size:11px;min-width:36px;height:24px;padding:0 8px;border-radius:7px;display:grid;place-items:center}}
+  .sw-badge.up{{background:var(--green-soft);color:var(--green)}}.sw-badge.dn{{background:var(--yellow-soft);color:#a5761a}}
+  .sw-item span{{font-size:13px;color:#33455c}}
+
+  /* tables */
   .tbl{{width:100%;border-collapse:collapse;font-size:13px}}
-  .tbl th{{text-align:left;font-family:'Sora';font-weight:600;font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);padding:0 8px 10px}}
+  .tbl th{{text-align:left;font-family:'Poppins';font-weight:600;font-size:10px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);padding:0 8px 9px}}
   .tbl th.r,.tbl td.r{{text-align:right}}.tbl th.c,.tbl td.c{{text-align:center}}
-  .tbl td{{padding:11px 8px;border-top:1px solid var(--line);color:#2c3d52}}
+  .tbl td{{padding:10px 8px;border-top:1px solid var(--line);color:#33455c}}
   .tbl tr:first-child td{{border-top:none}}
   .att-bar{{display:inline-flex;align-items:center;gap:8px}}
-  .att-track{{width:54px;height:6px;background:var(--line);border-radius:20px;overflow:hidden}}
+  .att-track{{width:50px;height:6px;background:var(--line);border-radius:20px;overflow:hidden}}
   .att-f{{height:100%;border-radius:20px}}
-  .att-pct{{font-weight:700;font-variant-numeric:tabular-nums;font-size:12.5px;min-width:34px;text-align:right}}
-  .chip{{font-family:'Sora';font-weight:700;font-size:11px;padding:3px 9px;border-radius:7px;background:var(--blue-soft);color:var(--royal)}}
-  .rec{{margin-top:14px;font-size:12.5px;color:#8a5a12;background:var(--gold-soft);border-radius:10px;padding:11px 14px;display:flex;gap:9px;align-items:flex-start}}
+  .att-pct{{font-weight:700;font-variant-numeric:tabular-nums;font-size:12px;min-width:32px;text-align:right}}
+  .chip{{font-family:'Poppins';font-weight:700;font-size:11px;padding:3px 9px;border-radius:6px;background:var(--blue-soft);color:var(--royal)}}
+  .rec{{margin-top:13px;font-size:12px;color:#8a5a12;background:var(--gold-soft);border-radius:10px;padding:11px 13px;display:flex;gap:9px;align-items:flex-start}}
   .rec b{{color:#6e4708}}
-  .sem{{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px 20px;box-shadow:var(--shadow);margin-bottom:12px}}
-  .sem-h{{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}}
-  .sem-h .t{{font-family:'Sora';font-weight:600;font-size:14.5px}}
-  .sem-h .t small{{color:var(--muted);font-weight:400;font-family:'Inter'}}
-  .sem-gpa{{font-family:'Sora';font-weight:700;font-size:12px;padding:5px 11px;border-radius:8px}}
-  .sem-gpa.done{{background:var(--navy);color:#fff}}.sem-gpa.prog{{background:var(--gold-soft);color:#a5761a}}
-  .md-sem{{margin-bottom:16px}}
-  .md-sem-h{{font-family:'Sora';font-weight:600;font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);margin:0 4px 8px}}
-  .md-course{{background:var(--card);border:1px solid var(--line);border-radius:12px;margin-bottom:8px;box-shadow:var(--shadow);overflow:hidden}}
-  .md-course summary{{list-style:none;cursor:pointer;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;gap:12px;user-select:none}}
+
+  /* semester cards */
+  .sem{{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:16px 18px;box-shadow:var(--shadow);margin-bottom:10px}}
+  .sem-h{{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}}
+  .sem-h .t{{font-family:'Poppins';font-weight:600;font-size:14px}}
+  .sem-h .t small{{color:var(--muted);font-weight:400;font-family:'Poppins'}}
+  .sem-gpa{{font-family:'Poppins';font-weight:700;font-size:11.5px;padding:4px 10px;border-radius:7px}}
+  .sem-gpa.done{{background:linear-gradient(135deg,var(--gold),var(--gold-deep));color:#fff;box-shadow:0 2px 8px rgba(226,154,46,.35)}}
+  .sem-gpa.prog{{background:var(--blue-soft);color:var(--blue)}}
+  .sem-grid{{display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:start}}
+  .sem-courses{{display:flex;flex-direction:column;gap:6px;margin-top:10px}}
+  .md-course.static .md-flat{{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:11px 14px}}
+  .sem-courses .md-course{{margin-bottom:0}}
+  .sem-courses .md-course summary{{padding:11px 14px}}
+  .sem-courses .md-title{{font-size:12.5px}}
+
+  /* marks detail */
+  .md-sem{{margin-bottom:14px}}
+  .md-sem-h{{font-family:'Poppins';font-weight:600;font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);margin:0 2px 8px}}
+  .md-course{{background:var(--card);border:1px solid var(--line);border-radius:12px;margin-bottom:7px;box-shadow:var(--shadow);overflow:hidden}}
+  .md-course summary{{list-style:none;cursor:pointer;padding:13px 15px;display:flex;align-items:center;justify-content:space-between;gap:12px;user-select:none}}
   .md-course summary::-webkit-details-marker{{display:none}}
-  .md-course summary::after{{content:"\\203A";color:var(--muted);font-size:18px;transition:transform .2s;margin-left:4px}}
+  .md-course summary::after{{content:"\\203A";color:var(--muted);font-size:17px;transition:transform .2s;margin-left:2px}}
   .md-course[open] summary::after{{transform:rotate(90deg)}}
-  .md-title{{font-weight:500;font-size:13.5px;color:#2c3d52;flex:1}}
+  .md-title{{font-weight:500;font-size:13px;color:#33455c;flex:1}}
   .md-summary{{display:flex;align-items:center;gap:10px}}
-  .md-total{{font-family:'Sora';font-weight:700;font-size:13px;color:var(--navy)}}
-  .md-body{{padding:4px 16px 16px;border-top:1px solid var(--line)}}
-  .md-row{{display:grid;grid-template-columns:76px 1fr auto;gap:10px;align-items:center;padding:6px 0;font-size:12.5px}}
+  .md-total{{font-family:'Poppins';font-weight:700;font-size:12.5px;color:var(--navy)}}
+  .md-body{{padding:3px 15px 14px;border-top:1px solid var(--line)}}
+  .md-row{{display:grid;grid-template-columns:72px 1fr auto;gap:10px;align-items:center;padding:5px 0;font-size:12px}}
   .md-lbl{{color:var(--muted)}}
-  .md-track{{height:7px;background:var(--line);border-radius:20px;overflow:hidden}}
+  .md-track{{height:6px;background:var(--line);border-radius:20px;overflow:hidden}}
   .md-fill{{display:block;height:100%;border-radius:20px}}
-  .md-val{{font-variant-numeric:tabular-nums;color:var(--ink);font-weight:600;min-width:48px;text-align:right}}
-  .tips{{list-style:none;display:flex;flex-direction:column;gap:11px}}
-  .tips li{{display:flex;gap:12px;font-size:13.5px;color:#2c3d52;align-items:flex-start}}
-  .tips .n{{width:22px;height:22px;border-radius:7px;background:var(--blue-soft);color:var(--blue);font-family:'Sora';font-weight:700;font-size:11px;display:grid;place-items:center;flex-shrink:0;margin-top:1px}}
-  .foot{{text-align:center;margin-top:34px;padding-top:20px;border-top:1px solid var(--line);font-size:12px;color:var(--muted);display:flex;align-items:center;justify-content:center;gap:8px}}
-  .rise{{opacity:0;transform:translateY(16px);animation:rise .7s cubic-bezier(.22,1,.36,1) forwards}}
+  .md-val{{font-variant-numeric:tabular-nums;color:var(--ink);font-weight:600;min-width:46px;text-align:right}}
+
+  /* suggestions */
+  .tips{{list-style:none;display:flex;flex-direction:column;gap:10px}}
+  .tips li{{display:flex;gap:11px;font-size:13px;color:#33455c;align-items:flex-start}}
+  .tips .n{{width:21px;height:21px;border-radius:6px;background:var(--blue-soft);color:var(--blue);font-family:'Poppins';font-weight:700;font-size:10.5px;display:grid;place-items:center;flex-shrink:0;margin-top:1px}}
+
+  .foot{{text-align:center;margin-top:36px;padding-top:18px;border-top:1px solid var(--line);font-size:11.5px;color:var(--muted);display:flex;align-items:center;justify-content:center;gap:8px}}
+
+  .rise{{opacity:0;transform:translateY(14px);animation:rise .65s cubic-bezier(.22,1,.36,1) forwards}}
   @keyframes rise{{to{{opacity:1;transform:none}}}}
-  .d1{{animation-delay:.05s}}.d2{{animation-delay:.12s}}.d3{{animation-delay:.19s}}.d4{{animation-delay:.26s}}.d5{{animation-delay:.33s}}.d6{{animation-delay:.4s}}.d7{{animation-delay:.47s}}
+  .d1{{animation-delay:.04s}}.d2{{animation-delay:.1s}}.d3{{animation-delay:.16s}}.d4{{animation-delay:.22s}}.d5{{animation-delay:.28s}}.d6{{animation-delay:.34s}}.d7{{animation-delay:.4s}}
+
   @media (max-width:720px){{
-    .hero{{padding:24px 20px;border-radius:20px}}
-    .hero-inner{{grid-template-columns:1fr;gap:24px;text-align:center}}
-    .ring-wrap{{margin:0 auto}}.bd-row{{grid-template-columns:80px 1fr auto}}.g2{{grid-template-columns:1fr}}
+    .hero{{padding:22px 20px}}
+    .hero-inner{{grid-template-columns:1fr;gap:20px;text-align:center}}
+    .ring-wrap{{margin:0 auto}}.bd{{text-align:left}}.bd-row{{grid-template-columns:78px 1fr auto}}
+    .g2{{grid-template-columns:1fr}}.sem-grid{{grid-template-columns:1fr}}.nav-title{{display:none}}
+    .trend-stats{{gap:16px}}
+  }}
+  @media print{{
+    .nav{{display:none}}body{{background:#fff}}.wrap{{max-width:100%;padding:0}}
+    .rise{{opacity:1!important;transform:none!important}}
+    .dl-btn{{display:none}}.hero{{box-shadow:none}}
+    .card,.trend-card,.sem,.flag,.md-course{{box-shadow:none;break-inside:avoid}}
+    .chart .line{{stroke-dashoffset:0!important}}.chart .dot,.chart .dv,.chart .chg,.area{{opacity:1!important}}
   }}
   @media (prefers-reduced-motion:reduce){{*{{animation:none!important;transition:none!important}}
-    .chart .line{{stroke-dashoffset:0}}.chart .dot,.chart .dv,.area{{opacity:1}}.rise{{opacity:1;transform:none}}}}
+    .chart .line{{stroke-dashoffset:0}}.chart .dot,.chart .dv,.chart .chg,.area{{opacity:1}}.rise{{opacity:1;transform:none}}}}
 </style></head>
-<body><div class="wrap">
-
-  <div class="brand rise">
-    <div class="brand-mark"><span>B</span></div>
-    <div class="brand-txt"><b>Academic Report</b><small>BUITEMS Student Portal</small></div>
-  </div>
+<body>
+  <nav class="nav"><div class="nav-in">
+    <div class="nav-brand"><div class="nav-mark"><svg viewBox="0 0 48 48" width="20" height="20" fill="none" style="z-index:1"><path d="M14 40c-1-6-2-10-1-15 .6-3 2-5 4-6-1-3-3-5-4-8-.5-1.5 0-3 1-2.5 1.5.8 3 3 4.5 5.5 1-1 2.5-1.5 4-1.5s3 .5 4 1.5c1.5-2.5 3-4.7 4.5-5.5 1-.5 1.5 1 1 2.5-1 3-3 5-4 8 2 1 3.4 3 4 6 1 5 0 9-1 15" stroke="#f4b842" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="20" cy="24" r="1.3" fill="#f4b842"/><circle cx="28" cy="24" r="1.3" fill="#f4b842"/></svg></div><span class="nav-title">Academic Report</span></div>
+    <div class="nav-links">
+      <a href="#priorities">Priorities</a>
+      <a href="#trend">GPA Trend</a>
+      <a href="#progress">Progress</a>
+      <a href="#attendance">Attendance</a>
+      <a href="#semesters">Grades</a>
+      <a href="#next">Next Steps</a>
+    </div>
+  </div></nav>
+  <div class="wrap">
 
   <div class="hero rise d1">
     <div class="hero-inner">
       <div class="ring-wrap">
-        <svg width="172" height="172" viewBox="0 0 172 172" style="transform:rotate(-90deg)">
-          <circle cx="86" cy="86" r="74" fill="none" stroke="rgba(255,255,255,.12)" stroke-width="13"/>
-          <circle id="ring" cx="86" cy="86" r="74" fill="none" stroke="url(#gRing)" stroke-width="13"
-            stroke-linecap="round" stroke-dasharray="465" stroke-dashoffset="465"/>
+        <svg width="120" height="120" viewBox="0 0 120 120" style="transform:rotate(-90deg)">
+          <circle cx="60" cy="60" r="52" fill="none" stroke="rgba(255,255,255,.12)" stroke-width="9"/>
+          <circle id="ring" cx="60" cy="60" r="52" fill="none" stroke="url(#gRing)" stroke-width="9"
+            stroke-linecap="round" stroke-dasharray="327" stroke-dashoffset="327"/>
           <defs><linearGradient id="gRing" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0" stop-color="#f5c451"/><stop offset="1" stop-color="#c9962e"/></linearGradient></defs>
+            <stop offset="0" stop-color="#e8b84b"/><stop offset="1" stop-color="#c69534"/></linearGradient></defs>
         </svg>
         <div class="ring-num"><div><b class="num" id="scoreNum">0</b><i>/ 100</i></div></div>
       </div>
@@ -462,42 +586,40 @@ def render_report(report, intelligence):
     </div>
   </div>
 
-  <div class="lbl rise d2"><span class="dot"></span><b>Priorities</b><span class="rule"></span></div>
+  <div class="lbl rise d2" id="priorities"><span class="dot"></span><b>Priorities</b><span class="rule"></span></div>
   <div class="flags">{_flag_cards(intelligence["flags"])}</div>
 
-  <div class="lbl rise d3"><span class="dot"></span><b>GPA Trend</b><span class="rule"></span></div>
-  <div class="trend-card rise d3">
+  <div class="lbl rise d3" id="trend"><span class="dot"></span><b>GPA Trend</b><span class="rule"></span></div>
+  <div class="trend-card glow rise d3">
     {trend_inner}
-    <button class="dl-btn" onclick="window.print()">&#8681; Download report (PDF)</button>
+    <div class="trend-wm">BUITEMS</div>
   </div>
+  <button class="dl-btn rise d3" onclick="window.print()">&#8681; Download report (PDF)</button>
 
   <div class="grid g2" style="margin-top:14px">
-    <div class="card rise d4"><h3>Overall CGPA</h3><div class="stat num">{_esc(cg_txt)}</div><span class="pill good">{standing} standing</span></div>
-    <div class="card rise d4"><h3>Fees</h3><div class="stat sm num">{_esc(fee_due)}</div><div class="stat-sub">{fee_total}</div><span class="pill {fee_pill[0]}">{fee_pill[1]}</span></div>
+    <div class="card cgpa-card glow rise d4"><h3>Overall CGPA</h3><div class="stat num">{_esc(cg_txt)}</div><span class="pill gold">{standing} standing</span></div>
+    <div class="card glow rise d4"><h3>Fees</h3><div class="stat sm num">{_esc(fee_due)}</div><div class="stat-sub">{fee_total}</div><span class="pill {fee_pill[0]}">{fee_pill[1]}</span></div>
   </div>
 
   {_degree_progress(report["credits"])}
 
   <div class="grid g2" style="margin-top:14px">
-    <div class="card rise d5"><h3>Strengths</h3><div class="sw">{_sw_items(intelligence["strengths"], "up")}</div></div>
-    <div class="card rise d5"><h3>Needs Focus</h3><div class="sw">{_sw_items(intelligence["weaknesses"], "dn")}</div></div>
+    <div class="card strengths rise d5"><h3>Strengths</h3><div class="sw">{_sw_items(intelligence["strengths"], "up")}</div></div>
+    <div class="card needsfocus rise d5"><h3>Needs Focus</h3><div class="sw">{_sw_items(intelligence["weaknesses"], "dn")}</div></div>
   </div>
 
-  <div class="lbl rise d5"><span class="dot"></span><b>Attendance</b><span class="rule"></span></div>
+  <div class="lbl rise d5" id="attendance"><span class="dot"></span><b>Attendance</b><span class="rule"></span></div>
   <div class="card rise d5">
     <table class="tbl"><thead><tr><th>Course</th><th class="c">Classes</th><th class="r">Rate</th></tr></thead>
       <tbody>{_attendance_rows(report["attendance"])}</tbody></table>
     {_recovery_note(intelligence["attendance_recovery"])}
   </div>
 
-  <div class="lbl rise d6"><span class="dot"></span><b>Semester Breakdown</b><span class="rule"></span></div>
-  <div class="rise d6">{_semester_cards(report["semesters"])}</div>
+  <div class="lbl rise d6" id="semesters"><span class="dot"></span><b>Grades &amp; Marks Detail</b><span class="rule"></span></div>
+  <p class="muted" style="font-size:12px;margin:0 2px 14px">Each semester with its courses. Tap any course to see how the grade was composed (Mid-Term 25 &middot; Final 50 &middot; Sessional 25).</p>
+  <div class="rise d6">{_combined_semesters(report)}</div>
 
-  <div class="lbl rise d7"><span class="dot"></span><b>Marks Detail</b><span class="rule"></span></div>
-  <p class="muted" style="font-size:12.5px;margin:0 4px 12px">Tap a course to see how each grade was composed (Mid-Term 25 &middot; Final 50 &middot; Sessional 25).</p>
-  <div class="rise d7">{_marks_detail(report["marks_breakdown"])}</div>
-
-  <div class="lbl rise d7"><span class="dot"></span><b>What to do next</b><span class="rule"></span></div>
+  <div class="lbl rise d7" id="next"><span class="dot"></span><b>What to do next</b><span class="rule"></span></div>
   <div class="card rise d7"><ul class="tips">{_suggestion_items(intelligence["suggestions"])}</ul></div>
 
   <div class="foot"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>Generated on your device &middot; No data leaves the university network</div>
@@ -506,7 +628,7 @@ def render_report(report, intelligence):
 <script>
   var score={score_js}, scorePending={"true" if is_pending else "false"};
   var ring=document.getElementById('ring');
-  var C=465, off=C-C*(score/100);
+  var C=327, off=C-C*(score/100);
   requestAnimationFrame(function(){{ring.style.transition='stroke-dashoffset 1.5s cubic-bezier(.22,1,.36,1) .3s';ring.style.strokeDashoffset=off;}});
   var numEl=document.getElementById('scoreNum'),s=0;
   if(scorePending){{numEl.textContent='–';}}else{{
