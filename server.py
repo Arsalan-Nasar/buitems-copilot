@@ -172,6 +172,7 @@ _DEMO_LABELS = {
     "ms": "MS / MPhil student",
     "phd": "PhD student (research)",
     "struggling_failures": "Student with failed papers",
+    "partial_semester": "Mid-semester (partial results)",
 }
 
 

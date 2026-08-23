@@ -769,9 +769,15 @@ def render_report(report, intelligence):
     var dots=document.getElementById('dots'),xl=document.getElementById('xlabels'),chg=document.getElementById('changes');
     var gmax=Math.max.apply(null,pts.map(function(p){{return p.g;}}));
     var gmin=Math.min.apply(null,pts.map(function(p){{return p.g;}}));
+    var hasVariation=(gmax!==gmin);  // if all GPAs equal, don't ring peak/lowest
+    var peakIdx=-1, lowIdx=-1;
+    if(hasVariation){{
+      for(var j=0;j<pts.length;j++){{if(peakIdx<0&&pts[j].g===gmax)peakIdx=j;}}
+      for(var k=0;k<pts.length;k++){{if(pts[k].g===gmin)lowIdx=k;}}
+    }}
     pts.forEach(function(p,i){{
       var cx=xs[i],cy=Y(p.g);
-      var isPeak=(p.g===gmax),isLow=(p.g===gmin);
+      var isPeak=(i===peakIdx),isLow=(i===lowIdx);
       var c=mk('circle',{{cx:cx,cy:cy,r:isPeak||isLow?6.5:5}},'dot');
       if(isPeak)c.style.stroke='#1f9d6b';if(isLow)c.style.stroke='#d0553f';
       c.style.animationDelay=(1.1+i*.14)+'s';dots.appendChild(c);

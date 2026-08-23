@@ -48,6 +48,7 @@ def _C(ch, title=None):   return _c("CS", title or _next_title(), ch, 15, 30, 15
 def _D(ch, title=None):   return _c("CS", title or _next_title(), ch, 13, 25, 13)   # 51 D
 def _F(ch, title=None):   return _c("CS", title or _next_title(), ch, 10, 20, 10)   # 40 F
 def _inprog(ch, title=None): return _c("CS", title or _next_title(), ch, None, None, None)
+def _midonly(ch, title=None): return _c("CS", title or _next_title(), ch, 20, None, None)  # mid posted, awaiting final
 
 
 PROBATION = {
@@ -192,10 +193,43 @@ STRUGGLING_WITH_FAILURES = {
     "schedule": [],
 }
 
+PARTIAL_SEMESTER = {
+    "student_id": "PS01", "name": "Mid-Semester Student",
+    "program": "BS Information Technology", "current_semester": 5,
+    "program_length": 8, "graduated": False,
+    "semesters": {
+        # completed earlier semesters with a REALISTIC rising journey
+        "1": _sem("Fall 2023", [_C(3, "Programming Fundamentals"),
+                                 _B(3, "Calculus I"),
+                                 _B(3, "English Composition")]),          # ~2.9
+        "2": _sem("Spring 2024", [_B(3, "Data Structures"),
+                                   _B(3, "Discrete Mathematics"),
+                                   _A(3, "Digital Logic Design")]),        # ~3.2
+        "3": _sem("Fall 2024", [_A(3, "Object Oriented Programming"),
+                                 _B(3, "Linear Algebra"),
+                                 _A(3, "Database Systems")]),              # ~3.5
+        "4": _sem("Spring 2025", [_A(3, "Operating Systems"),
+                                   _A(3, "Software Engineering"),
+                                   _A(3, "Computer Networks")]),           # 4.0
+        # CURRENT semester: some results posted, one mid-only, one awaiting
+        "5": _sem("Fall 2025", [
+            _A(3, "Artificial Intelligence"),   # posted -> A
+            _A(3, "Web Technologies"),          # posted -> A
+            _midonly(3, "Machine Learning"),    # mid posted, awaiting final
+            _inprog(3, "Cyber Security"),       # nothing yet
+        ]),
+    },
+    "fees": [{"term": "Fall 2025", "total": 52000, "paid": 52000}],
+    "attendance": [{"code": "CS", "title": "Machine Learning", "present": 26, "total": 30}],
+    "schedule": [],
+}
+
+
 ALL_STUDENTS = {
     "probation": PROBATION, "warning": WARNING, "good": GOOD, "honors": HONORS,
     "graduated": GRADUATED, "first_semester": FIRST_SEMESTER,
     "five_year": FIVE_YEAR, "fresh": FRESH,
     "ms": MS_STUDENT, "phd": PHD_STUDENT,
     "struggling_failures": STRUGGLING_WITH_FAILURES,
+    "partial_semester": PARTIAL_SEMESTER,
 }
