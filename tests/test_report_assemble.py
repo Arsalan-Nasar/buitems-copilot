@@ -70,7 +70,9 @@ def run():
     check("completed credits is 116", r["credits"]["completed"] == 116)
     check("degree percent is sane", 0 <= r["credits"]["percent"] <= 100)
     check("degree total is configurable", r["credits"]["total_required"] > 0)
-    check("progress flagged as estimate", r["credits"]["is_estimate"] is True)
+    # graduated students show a factual 100% (is_estimate False); active students
+    # show an estimated total. Either way the flag must be a boolean.
+    check("progress estimate flag is boolean", isinstance(r["credits"]["is_estimate"], bool))
 
     # ---- course history ----
     check("course history present", "course_history" in r)

@@ -241,17 +241,32 @@ def build_credits_section(data, total_required=None):
                 completed += ch
             else:
                 in_progress += ch
-    pct = round(completed / total_required * 100) if total_required else 0
-    pct = min(pct, 100)
+
+    graduated = bool(data.get("graduated"))
+
+    # A graduated student has, by definition, completed the degree -> 100%.
+    # Also, if the actual credits taken exceed our ESTIMATED total, the estimate
+    # is clearly too low for this student, so treat their own total as the truth.
+    # (This keeps the bar honest instead of showing a graduate at 87%.)
+    if graduated:
+        total_required = max(total_required, completed)
+        pct = 100
+    else:
+        if completed > total_required:
+            total_required = completed  # estimate was too low; trust real data
+        pct = round(completed / total_required * 100) if total_required else 0
+        pct = min(pct, 100)
+
     return {
         "completed": completed,
         "in_progress": in_progress,
         "total_required": total_required,
-        "remaining": max(0, total_required - completed),
+        "remaining": 0 if graduated else max(0, total_required - completed),
         "percent": pct,
-        "is_estimate": True,       # honest labelling in the UI
+        "is_estimate": not graduated,   # once graduated, it's a fact, not an estimate
+        "graduated": graduated,
         "level": level,            # 'bs' | 'ms' | 'phd'
-        "coursework_only": level == "phd",  # PhD: coursework phase, not full degree
+        "coursework_only": level == "phd" and not graduated,
     }
 
 

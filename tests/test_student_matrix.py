@@ -57,6 +57,12 @@ def run():
     check("graduated: flag is green (not urgent)",
           all(f["level"] == "green" for f in grad_intel["flags"]))
     check("graduated: standing flags graduated", grad_intel["standing"]["graduated"] is True)
+    # regression guard: a graduated student MUST show 100% degree progress
+    grad_report, _, _ = _pipeline(ALL_STUDENTS["graduated"])
+    check("graduated: degree progress is 100%",
+          grad_report["credits"]["percent"] == 100)
+    check("graduated: no credits remaining",
+          grad_report["credits"]["remaining"] == 0)
 
     # ---- 3. PROBATION student: gets urgent standing advice ----
     _, prob_intel, _ = _pipeline(ALL_STUDENTS["probation"])

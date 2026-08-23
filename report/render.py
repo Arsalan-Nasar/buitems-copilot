@@ -356,7 +356,7 @@ def render_report(report, intelligence):
     return f'''<!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Academic Report {EM_DASH} {_esc(st["name"])}</title>
+<title>Evora {EM_DASH} {_esc(st["name"])}</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=Amiri:wght@400;700&display=swap');
   *{{box-sizing:border-box;margin:0;padding:0}}
@@ -391,7 +391,9 @@ def render_report(report, intelligence):
   .nav-mark{{width:34px;height:34px;border-radius:50%;overflow:hidden;flex-shrink:0;
     box-shadow:0 1px 4px rgba(10,37,64,.18)}}
   .nav-mark img{{width:100%;height:100%;object-fit:cover;display:block}}
-  .nav-title{{font-family:'Poppins';font-weight:600;font-size:14px;letter-spacing:-.01em}}
+  .nav-title{{font-family:'Poppins';font-weight:700;font-size:16px;letter-spacing:-.01em;color:var(--navy);line-height:1}}
+  .nav-titlewrap{{display:flex;flex-direction:column;gap:1px}}
+  .nav-tagline{{font-size:9.5px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;color:var(--gold-deep)}}
   .nav-links{{display:flex;gap:4px;margin-left:auto;overflow-x:auto;scrollbar-width:none}}
   .nav-links::-webkit-scrollbar{{display:none}}
   .nav-links a{{font-size:12.5px;color:var(--muted);text-decoration:none;padding:6px 11px;border-radius:8px;
@@ -601,7 +603,7 @@ def render_report(report, intelligence):
 </style></head>
 <body>
   <nav class="nav"><div class="nav-in">
-    <div class="nav-brand"><div class="nav-mark"><img src="/static/markhor2.png" alt="Markhor" width="34" height="34"></div><span class="nav-title">Academic Report</span></div>
+    <div class="nav-brand"><div class="nav-mark"><img src="/static/markhor2.png" alt="Markhor" width="34" height="34"></div><div class="nav-titlewrap"><span class="nav-title">Evora</span><span class="nav-tagline">Academic Insight</span></div></div>
     <div class="nav-links">
       <a href="#priorities">Priorities</a>
       <a href="#trend">GPA Trend</a>
