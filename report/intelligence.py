@@ -105,6 +105,38 @@ def academic_health_score(report):
 # ---------------------------------------------------------------------------
 # STRENGTHS & WEAKNESSES — rank completed courses by grade point.
 # ---------------------------------------------------------------------------
+def failed_and_passed(report):
+    """Identify failed courses (grade F) and passed courses across all semesters.
+
+    Used to give students with failures a compassionate, balanced view: their
+    wins are recognised, and failed courses are framed as retakeable, not final.
+    """
+    failed = []
+    passed = []
+    for sem in report["semesters"]:
+        for c in sem.get("courses", []):
+            grade = c.get("grade")
+            if grade is None:
+                continue  # not yet graded
+            entry = {
+                "title": c.get("title", "Course"),
+                "code": c.get("code", ""),
+                "grade": grade,
+                "semester": sem.get("semester"),
+                "grade_point": c.get("grade_point", 0),
+            }
+            if grade == "F":
+                failed.append(entry)
+            else:
+                passed.append(entry)
+    # best passed courses first (for praise)
+    passed.sort(key=lambda x: x["grade_point"], reverse=True)
+    return {"failed": failed, "passed": passed,
+            "has_failures": len(failed) > 0,
+            "pass_count": len(passed),
+            "fail_count": len(failed)}
+
+
 def strengths_and_weaknesses(report):
     graded = []
     for sem in report["semesters"]:
@@ -279,22 +311,50 @@ def suggestions(report, sw=None, standing=None):
         return tips
 
     # ---- ACTIVE STUDENTS ----
+    fp = failed_and_passed(report)
+
+    # If the student has failed subjects, LEAD WITH ENCOURAGEMENT.
+    # Recognise what they passed before mentioning what to retake — a struggling
+    # student needs to see they are capable, not just where they fell short.
+    if fp["has_failures"]:
+        strong = [p for p in fp["passed"] if p["grade_point"] >= 3.0]
+        if strong:
+            names = ", ".join(p["title"] for p in strong[:2])
+            tips.append(f"You should be proud of your result in {names} — that's real "
+                        f"ability, and it shows you can absolutely do this.")
+        elif fp["passed"]:
+            names = ", ".join(p["title"] for p in fp["passed"][:2])
+            tips.append(f"You passed {names} — every pass is progress worth recognising. "
+                        f"Build on it.")
+        fail_names = ", ".join(f["title"] for f in fp["failed"][:3])
+        if fp["fail_count"] == 1:
+            tips.append(f"{fail_names} didn't go your way this time — and that's okay. "
+                        f"A failed course can be retaken and improved; it doesn't define "
+                        f"you. Plan your retake and give it another honest attempt.")
+        else:
+            tips.append(f"A few courses ({fail_names}) need a retake — that's a setback, "
+                        f"not the end of the road. Many strong students have retaken "
+                        f"courses and gone on to do well. Take them one at a time.")
+
     # attendance is always the most urgent (hard exam blocker)
     for c in report["attendance"]["below_threshold"]:
         tips.append(f"Attend every remaining {c['title']} class — your attendance "
                     f"({c['percent']}%) is below the exam threshold.")
 
-    # probation / warning: lead with the standing itself
+    # probation / warning: lead with the standing itself (softened tone)
     if standing["tier"] == "probation":
         tips.append(f"Your CGPA ({standing['cgpa']}) is below the 2.0 good-standing "
-                    f"minimum. Meet your academic advisor to build a recovery plan "
-                    f"before the next registration.")
+                    f"minimum right now. This is recoverable — meet your academic "
+                    f"advisor to build a step-by-step plan before the next registration.")
     elif standing["tier"] == "warning":
         tips.append(f"Your CGPA ({standing['cgpa']}) is close to the 2.0 minimum. "
                     f"A focused semester now will move you safely into good standing.")
 
-    # weakness-focused advice (only meaningful for active students who can act)
+    # weakness-focused advice — skip courses already covered as failures above
+    failed_titles = {f["title"] for f in fp["failed"]}
     for w in sw["weaknesses"]:
+        if w["title"] in failed_titles:
+            continue
         tips.append(f"Give extra focus to {w['title']} (grade {w['grade']}) — "
                     f"improving it would lift your CGPA the most.")
 
@@ -334,4 +394,5 @@ def build_intelligence(report):
         "flags": risk_flags(report),
         "attendance_recovery": attendance_recovery(report),
         "suggestions": suggestions(report, sw, standing),
+        "failed_passed": failed_and_passed(report),
     }

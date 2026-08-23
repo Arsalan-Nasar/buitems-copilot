@@ -1,4 +1,4 @@
-# server.py — BUITEMS Copilot: the offline Academic Report generator.
+# server.py — Evora: the offline academic insight engine (report generator).
 #
 # PLAIN ENGLISH:
 # This is the "enhancement tab" backend. When a student opens the tab, the portal
@@ -59,6 +59,11 @@ def _rate_limited(client_key):
     dq = _hits.setdefault(client_key, deque())
     while dq and now - dq[0] > _RATE_WINDOW:
         dq.popleft()
+    # housekeeping: occasionally drop client keys that have gone quiet, so the
+    # _hits dict doesn't grow without bound over a long-running deployment.
+    if len(_hits) > 1000:
+        for k in [k for k, v in _hits.items() if not v]:
+            del _hits[k]
     if len(dq) >= _RATE_MAX:
         return True
     dq.append(now)
@@ -164,6 +169,9 @@ _DEMO_LABELS = {
     "graduated": "Graduated student",
     "five_year": "5-year program (Pharm-D)",
     "fresh": "Brand-new (no results yet)",
+    "ms": "MS / MPhil student",
+    "phd": "PhD student (research)",
+    "struggling_failures": "Student with failed papers",
 }
 
 
@@ -194,7 +202,7 @@ def demo():
             sel = " selected" if k == key else ""
             options += f'<option value="{k}"{sel}>{_DEMO_LABELS[k]}</option>'
     picker = f'''<div style="position:sticky;top:0;z-index:99;background:#0a2540;color:#fff;
-      padding:12px 18px;display:flex;align-items:center;gap:14px;font-family:'Sora',system-ui,sans-serif;
+      padding:12px 18px;display:flex;align-items:center;gap:14px;font-family:'Poppins',system-ui,sans-serif;
       box-shadow:0 2px 12px rgba(10,37,64,.25)">
       <span style="font-weight:700;font-size:13px;letter-spacing:.04em">DEMO</span>
       <span style="font-size:12px;color:rgba(255,255,255,.7)">Viewing:</span>

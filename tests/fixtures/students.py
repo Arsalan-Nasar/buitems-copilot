@@ -25,12 +25,29 @@ def _sem(term, courses):
 
 # ---- helpers to hit target grade bands ----
 # marks: A>=85, A-80, B+75, B70, B-65, C+61, C58, C-55, D50, F<50
-def _A(ch):   return _c("X", "Course", ch, 23, 45, 23)   # 91 A
-def _B(ch):   return _c("X", "Course", ch, 18, 36, 19)   # 73 B
-def _C(ch):   return _c("X", "Course", ch, 15, 30, 15)   # 60 C
-def _D(ch):   return _c("X", "Course", ch, 13, 25, 13)   # 51 D
-def _F(ch):   return _c("X", "Course", ch, 10, 20, 10)   # 40 F
-def _inprog(ch): return _c("X", "Course", ch, None, None, None)
+# Each helper takes an optional realistic title so fixtures read like real data
+# (not "Course, Course"). A rotating pool provides names when none is given.
+_TITLE_POOL = [
+    "Programming Fundamentals", "Data Structures", "Calculus I", "Calculus II",
+    "Discrete Mathematics", "Computer Networks", "Operating Systems", "Databases",
+    "Artificial Intelligence", "Software Engineering", "Web Technologies",
+    "Digital Logic Design", "Linear Algebra", "English Composition",
+]
+_title_i = [0]
+
+
+def _next_title():
+    t = _TITLE_POOL[_title_i[0] % len(_TITLE_POOL)]
+    _title_i[0] += 1
+    return t
+
+
+def _A(ch, title=None):   return _c("CS", title or _next_title(), ch, 23, 45, 23)   # 91 A
+def _B(ch, title=None):   return _c("CS", title or _next_title(), ch, 18, 36, 19)   # 73 B
+def _C(ch, title=None):   return _c("CS", title or _next_title(), ch, 15, 30, 15)   # 60 C
+def _D(ch, title=None):   return _c("CS", title or _next_title(), ch, 13, 25, 13)   # 51 D
+def _F(ch, title=None):   return _c("CS", title or _next_title(), ch, 10, 20, 10)   # 40 F
+def _inprog(ch, title=None): return _c("CS", title or _next_title(), ch, None, None, None)
 
 
 PROBATION = {
@@ -161,9 +178,24 @@ PHD_STUDENT = {
     "schedule": [],
 }
 
+
+STRUGGLING_WITH_FAILURES = {
+    "student_id": "SF01", "name": "Resilient Student",
+    "program": "BS Information Technology", "current_semester": 3,
+    "program_length": 8, "graduated": False,
+    "semesters": {
+        "1": _sem("Fall 2024", [_F(3), _A(3), _B(3)]),   # failed one, aced another
+        "2": _sem("Spring 2025", [_F(3), _A(3), _C(3)]),  # failed one, passed rest
+    },
+    "fees": [{"term": "Fall 2024", "total": 50000, "paid": 50000}],
+    "attendance": [],
+    "schedule": [],
+}
+
 ALL_STUDENTS = {
     "probation": PROBATION, "warning": WARNING, "good": GOOD, "honors": HONORS,
     "graduated": GRADUATED, "first_semester": FIRST_SEMESTER,
     "five_year": FIVE_YEAR, "fresh": FRESH,
     "ms": MS_STUDENT, "phd": PHD_STUDENT,
+    "struggling_failures": STRUGGLING_WITH_FAILURES,
 }

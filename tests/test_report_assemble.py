@@ -33,7 +33,7 @@ def run():
 
     # cgpa section
     check("CGPA is 3.53", r["cgpa"]["cgpa"] == 3.53)
-    check("standing is excellent", r["cgpa"]["standing"] == "excellent")
+    check("standing is honors", r["cgpa"]["standing"] == "honors")
 
     # trend section
     pts = r["trend"]["points"]

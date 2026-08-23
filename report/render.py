@@ -7,7 +7,7 @@
 #
 # Design language: deep BUITEMS navy hero, markhor-gold health ring (animated
 # sweep + count-up), self-drawing GPA trend chart, staggered card reveals,
-# Sora display type + Inter body. Fully responsive; respects reduced-motion.
+# Poppins throughout (BUITEMS brand font). Fully responsive; respects reduced-motion.
 
 import html as _html
 import json as _json
@@ -41,6 +41,32 @@ def _breakdown_rows(breakdown):
             f'<span class="bd-val num">{_esc(b["points"])}/{_esc(b["max"])}</span></div>'
         )
     return "".join(out)
+
+
+def _papers_cleared(intelligence):
+    """A warm recognition banner shown ONLY to students who have failures but
+    have also passed courses — celebrating what they cleared so the report never
+    feels purely negative. Returns empty string when not applicable."""
+    fp = intelligence.get("failed_passed", {})
+    if not fp.get("has_failures") or fp.get("pass_count", 0) == 0:
+        return ""
+    passed = fp["passed"]
+    # show up to 6 passed course chips, best first
+    chips = "".join(
+        '<span class="pc-chip"><b>' + _esc(p["grade"]) + '</b> ' + _esc(p["title"]) + '</span>'
+        for p in passed[:6]
+    )
+    count = fp["pass_count"]
+    word = "paper" if count == 1 else "papers"
+    return (
+        '<div class="lbl rise d2"><span class="dot"></span><b>Papers You\'ve Cleared</b><span class="rule"></span></div>'
+        '<div class="pc-card glow rise d2">'
+        '<div class="pc-head"><span class="pc-emoji">\u2713</span>'
+        '<span class="pc-title">You\'ve cleared <b>' + str(count) + '</b> ' + word
+        + ' \u2014 well done. Every one of these is a win.</span></div>'
+        '<div class="pc-chips">' + chips + '</div>'
+        '</div>'
+    )
 
 
 def _flag_cards(flags):
@@ -347,7 +373,7 @@ def render_report(report, intelligence):
     else:
         trend_inner = (
             '<div style="text-align:center;padding:40px 20px;color:var(--muted)">'
-            '<div style="font-family:Sora,sans-serif;font-weight:700;font-size:18px;'
+            '<div style="font-family:Poppins,sans-serif;font-weight:700;font-size:18px;'
             'color:var(--navy);margin-bottom:6px">Trend coming soon</div>'
             '<div style="font-size:13px">A GPA trend chart appears once you have '
             'at least two completed semesters.</div></div>'
@@ -439,6 +465,18 @@ def render_report(report, intelligence):
   .flag.red .flag-ico{{background:var(--red)}}.flag.amber .flag-ico{{background:var(--amber)}}.flag.green .flag-ico{{background:var(--green)}}
   .flag-tx{{font-size:13px;padding-top:2px;color:#33455c}}
 
+  /* papers cleared — positive recognition for students with failures */
+  .pc-card{{background:linear-gradient(135deg,#e5f5ee,#f0faf5);border:1px solid #bfe6d3;
+    border-radius:16px;padding:18px 20px;box-shadow:var(--shadow)}}
+  .pc-head{{display:flex;align-items:center;gap:12px;margin-bottom:13px}}
+  .pc-emoji{{width:30px;height:30px;border-radius:9px;background:var(--green);color:#fff;
+    display:grid;place-items:center;font-weight:800;font-size:16px;flex-shrink:0}}
+  .pc-title{{font-size:13.5px;color:#1a5e42;font-weight:500}}
+  .pc-title b{{font-weight:800;color:var(--green)}}
+  .pc-chips{{display:flex;flex-wrap:wrap;gap:8px}}
+  .pc-chip{{font-size:12px;color:#2c3d52;background:#fff;border:1px solid #cfe9db;
+    border-radius:20px;padding:5px 11px;display:inline-flex;align-items:center;gap:6px}}
+  .pc-chip b{{font-family:'Poppins';font-weight:700;color:var(--green);font-size:11px}}
   /* cards + grid */
   .grid{{display:grid;gap:12px}}.g2{{grid-template-columns:1fr 1fr}}
   .card{{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:18px;box-shadow:var(--shadow)}}
@@ -639,6 +677,8 @@ def render_report(report, intelligence):
 
   <div class="lbl rise d2" id="priorities"><span class="dot"></span><b>Priorities</b><span class="rule"></span></div>
   <div class="flags">{_flag_cards(intelligence["flags"])}</div>
+
+  {_papers_cleared(intelligence)}
 
   <div class="lbl rise d3" id="trend"><span class="dot"></span><b>GPA Trend</b><span class="rule"></span></div>
   <div class="trend-card glow rise d3">

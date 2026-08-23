@@ -109,6 +109,29 @@ def run():
     ]
     check("incomplete semester returns no GPA", semester_gpa(incomplete) is None)
 
+    # ---- data integrity: bad portal data is sanitised (audit fixes) ----
+    from core.normalize import _clean_course, _num
+    check("booleans not treated as numbers", _num(True, 0) == 0 and _num(False, 5) == 5)
+    bad = _clean_course({"code": "X", "mid": True, "final": 150, "sessional": -5})
+    check("boolean mark rejected", bad["mid"] is None)
+    check("over-100 mark clamped to 100", bad["final"] == 100)
+    check("negative mark clamped to 0", bad["sessional"] == 0)
+
+    # ---- standing labels are consistent between assemble and intelligence ----
+    from core.normalize import normalize_student
+    from report.assemble import assemble_report
+    from report.intelligence import academic_standing
+    for marks in [(23,45,23),(18,36,19),(15,30,16),(12,24,13)]:  # honors..probation
+        s_ = {"student_id":"C","name":"C","program":"BS IT","current_semester":1,
+              "program_length":8,"graduated":False,
+              "semesters":{"1":{"term":"T","courses":[
+                  {"code":"C","title":"Course","credit_hours":3,
+                   "mid":marks[0],"final":marks[1],"sessional":marks[2]}]}},
+              "fees":[],"attendance":[],"schedule":[]}
+        r_ = assemble_report(normalize_student(s_))
+        check(f"standing consistent for marks {marks}",
+              r_["cgpa"]["standing"] == academic_standing(r_)["tier"])
+
     # ---- report ----
     passed = sum(1 for _, ok in results if ok)
     for name, ok in results:

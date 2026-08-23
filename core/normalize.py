@@ -11,13 +11,28 @@
 
 
 def _num(value, default=0):
-    """Return a number, treating None/missing/bad values as the default."""
-    if value is None:
+    """Return a number, treating None/missing/bad values as the default.
+    Booleans are rejected (in Python bool is a subclass of int, so True would
+    otherwise sneak through as 1)."""
+    if value is None or isinstance(value, bool):
         return default
     try:
         return type(default)(value)
     except (TypeError, ValueError):
         return default
+
+
+def _mark(value):
+    """Clean a single assessment mark. Returns None if not posted, and guards
+    against bad portal data: booleans are rejected, and out-of-range values are
+    clamped to a sane 0-100 (a mark can never be negative or above 100)."""
+    if value is None or isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    if value < 0:
+        return 0
+    if value > 100:
+        return 100
+    return value
 
 
 def _clean_course(c):
@@ -27,10 +42,10 @@ def _clean_course(c):
         "title": c.get("title") or c.get("code") or "Course",
         "credit_hours": _num(c.get("credit_hours"), 0),
         # marks stay None if genuinely not posted yet (skills rely on this to
-        # detect "result not ready"), but never a broken/garbage value.
-        "mid": c.get("mid") if isinstance(c.get("mid"), (int, float)) else None,
-        "final": c.get("final") if isinstance(c.get("final"), (int, float)) else None,
-        "sessional": c.get("sessional") if isinstance(c.get("sessional"), (int, float)) else None,
+        # detect "result not ready"), but never a broken/garbage/out-of-range value.
+        "mid": _mark(c.get("mid")),
+        "final": _mark(c.get("final")),
+        "sessional": _mark(c.get("sessional")),
     }
 
 

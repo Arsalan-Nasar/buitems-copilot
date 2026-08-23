@@ -58,19 +58,24 @@ def build_semester_section(data):
 
 
 def build_cgpa_section(data):
-    """Overall CGPA + a simple standing band."""
+    """Overall CGPA + standing band.
+
+    Uses the SAME tier names as intelligence.academic_standing() so the report
+    never shows conflicting labels for the same student:
+      honors >=3.5 | good >=3.0 | satisfactory >=2.5 | warning >=2.0 | probation <2.0
+    """
     value = cgpa(data.get("semesters", {}))
     if value is None:
         return {"cgpa": None, "standing": "no_data", "message": "No completed semesters yet."}
 
     if value >= 3.5:
-        standing = "excellent"
+        standing = "honors"
     elif value >= 3.0:
         standing = "good"
     elif value >= 2.5:
         standing = "satisfactory"
     elif value >= 2.0:
-        standing = "at_risk"
+        standing = "warning"
     else:
         standing = "probation"
 
@@ -117,8 +122,7 @@ def build_attendance_section(data):
         }
         courses.append(entry)
         if pct is not None and pct < THRESHOLD:
-            # classes needed to reach the threshold if they attend all remaining
-            below.append(entry)
+            below.append(entry)  # recovery math (classes needed) is computed in intelligence.py
     return {"threshold": THRESHOLD, "courses": courses, "below_threshold": below}
 
 
