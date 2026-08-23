@@ -132,6 +132,22 @@ def run():
         check(f"standing consistent for marks {marks}",
               r_["cgpa"]["standing"] == academic_standing(r_)["tier"])
 
+    # ---- partial results: a semester with SOME posted courses ----
+    from core.grading import semester_gpa, semester_gpa_so_far, course_status
+    partial = [
+        {"code":"A","title":"A","credit_hours":3,"mid":22,"final":44,"sessional":22},  # posted -> A
+        {"code":"B","title":"B","credit_hours":3,"mid":20,"final":None,"sessional":None},  # mid only
+        {"code":"C","title":"C","credit_hours":3,"mid":None,"final":None,"sessional":None},  # pending
+    ]
+    check("strict semester_gpa is None when not all posted", semester_gpa(partial) is None)
+    check("gpa_so_far ignores pending, uses posted", semester_gpa_so_far(partial) == 4.0)
+    check("course_status posted", course_status(partial[0]) == "posted")
+    check("course_status mid_only", course_status(partial[1]) == "mid_only")
+    check("course_status pending", course_status(partial[2]) == "pending")
+    # nothing posted at all -> gpa_so_far is None (not a fake 0)
+    nothing = [{"code":"X","title":"X","credit_hours":3,"mid":None,"final":None,"sessional":None}]
+    check("gpa_so_far None when nothing posted", semester_gpa_so_far(nothing) is None)
+
     # ---- report ----
     passed = sum(1 for _, ok in results if ok)
     for name, ok in results:

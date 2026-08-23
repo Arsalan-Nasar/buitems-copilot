@@ -164,8 +164,13 @@ def _combined_semesters(report):
         for c in s["courses"]:
             grade = c["grade"]
             posted = grade is not None
-            chip = (f'<span class="chip">{_esc(grade)}</span>' if posted
-                    else f'<span class="chip" style="background:var(--line);color:var(--muted)">{EM_DASH}</span>')
+            cstatus = c.get("status", "pending")
+            if posted:
+                chip = f'<span class="chip">{_esc(grade)}</span>'
+            elif cstatus == "mid_only":
+                chip = '<span class="chip wait">Mid posted</span>'
+            else:
+                chip = '<span class="chip wait">Awaiting</span>'
             bd = sem_marks.get((c["code"], c["title"]))
             if posted and bd:
                 bars = "".join(_bar(b) for b in bd)
@@ -183,8 +188,12 @@ def _combined_semesters(report):
                 )
         if s["status"] == "complete" and s["gpa"] is not None:
             gpa_badge = f'<span class="sem-gpa done num">GPA {_esc(s["gpa"])}</span>'
+        elif s["status"] == "partial" and s.get("gpa_so_far") is not None:
+            # some results are in — show the live GPA and how many are posted
+            gpa_badge = (f'<span class="sem-gpa live num">GPA {_esc(s["gpa_so_far"])} so far'
+                         f' &middot; {_esc(s["posted_count"])}/{_esc(s["total_courses"])}</span>')
         else:
-            gpa_badge = '<span class="sem-gpa prog">In progress</span>'
+            gpa_badge = '<span class="sem-gpa prog">Awaiting results</span>'
         term = f'<small>&middot; {_esc(s["term"])}</small>' if s["term"] else ""
         cards.append(
             '<div class="sem"><div class="sem-h">'
@@ -566,6 +575,8 @@ def render_report(report, intelligence):
   .sem-h .t small{{color:var(--muted);font-weight:400;font-family:'Poppins'}}
   .sem-gpa{{font-family:'Poppins';font-weight:700;font-size:11.5px;padding:4px 10px;border-radius:7px}}
   .sem-gpa.done{{background:linear-gradient(135deg,var(--gold),var(--gold-deep));color:#fff;box-shadow:0 2px 8px rgba(226,154,46,.35)}}
+  .sem-gpa.live{{background:var(--blue-soft);color:var(--blue);font-size:10.5px}}
+  .chip.wait{{background:var(--gold-soft);color:var(--gold-deep);font-weight:600;font-size:10px}}
   .sem-gpa.prog{{background:var(--blue-soft);color:var(--blue)}}
   .sem-grid{{display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:start}}
   .sem-courses{{display:flex;flex-direction:column;gap:6px;margin-top:10px}}

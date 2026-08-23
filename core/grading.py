@@ -62,14 +62,33 @@ def course_grade_point(course):
     return grade_to_point(marks_to_grade(marks))
 
 
+def course_status(course):
+    """Where a course is in its result lifecycle. Reflects how BUITEMS posts
+    marks: nothing at first, then mid, then the final+sessional together.
+
+      'posted'    -> mid AND final are in (a real grade can be computed)
+      'mid_only'  -> mid is in but final isn't (awaiting final result)
+      'pending'   -> nothing posted yet (semester just started / not uploaded)
+    """
+    mid = course.get("mid")
+    final = course.get("final")
+    if mid is not None and final is not None:
+        return "posted"
+    if mid is not None:
+        return "mid_only"
+    return "pending"
+
+
 def semester_gpa(courses):
-    """GPA for one semester. Returns None if any course is still incomplete."""
+    """STRICT semester GPA: only returns a number when EVERY course is fully
+    posted (the official end-of-semester GPA). Returns None if any course is
+    still incomplete."""
     total_points = 0.0
     total_credits = 0
     for c in courses:
         gp = course_grade_point(c)
         if gp is None:
-            return None          # semester not finished -> no GPA yet
+            return None          # semester not finished -> no official GPA yet
         ch = c.get("credit_hours")
         if not ch:               # missing/zero credit hours -> skip, don't crash
             continue
@@ -77,6 +96,29 @@ def semester_gpa(courses):
         total_credits += ch
     if total_credits == 0:
         return None
+    return round(total_points / total_credits, 2)
+
+
+def semester_gpa_so_far(courses):
+    """LIVE GPA from the courses posted SO FAR, ignoring pending ones.
+
+    This is what a student wants to see mid-semester: "based on results already
+    out, here's where I stand." Unlike semester_gpa(), one un-posted course does
+    NOT hide the grades that ARE in. Returns None only if NOTHING is posted yet.
+    """
+    total_points = 0.0
+    total_credits = 0
+    for c in courses:
+        gp = course_grade_point(c)
+        if gp is None:
+            continue             # skip courses not yet posted (don't discard the rest)
+        ch = c.get("credit_hours")
+        if not ch:
+            continue
+        total_points += gp * ch
+        total_credits += ch
+    if total_credits == 0:
+        return None              # nothing posted yet
     return round(total_points / total_credits, 2)
 
 

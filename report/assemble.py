@@ -11,6 +11,7 @@
 
 from core.grading import (
     total_marks, marks_to_grade, course_grade_point, semester_gpa, cgpa,
+    semester_gpa_so_far, course_status,
 )
 
 
@@ -23,17 +24,22 @@ def _round2(x):
 
 
 def build_semester_section(data):
-    """Per-semester breakdown: each course with marks, grade, and the semester GPA.
-    Incomplete semesters (no posted marks) are marked as in-progress, not scored."""
+    """Per-semester breakdown: each course with marks, grade, status, and the
+    semester GPA. Handles partial results honestly:
+      - each course is tagged posted / mid_only / pending
+      - a semester with SOME results shows a live 'gpa_so_far'
+      - status is complete / partial / not_started
+    """
     semesters = []
     for sem_id in sorted(data.get("semesters", {}), key=lambda s: int(s) if s.isdigit() else 0):
         sem = data["semesters"][sem_id]
         courses = []
-        complete = True
+        posted_count = 0
         for c in sem.get("courses", []):
-            posted = c.get("final") is not None and c.get("mid") is not None
-            if not posted:
-                complete = False
+            cstatus = course_status(c)
+            posted = cstatus == "posted"
+            if posted:
+                posted_count += 1
             marks = total_marks(c) if posted else None
             courses.append({
                 "code": c.get("code", ""),
@@ -45,14 +51,30 @@ def build_semester_section(data):
                 "total": marks,
                 "grade": marks_to_grade(marks) if marks is not None else None,
                 "grade_point": course_grade_point(c) if posted else None,
+                "status": cstatus,   # posted | mid_only | pending
             })
-        gpa = semester_gpa(sem.get("courses", []))
+
+        total_courses = len(sem.get("courses", []))
+        official_gpa = semester_gpa(sem.get("courses", []))
+        live_gpa = semester_gpa_so_far(sem.get("courses", []))
+
+        # semester status: complete (all posted) / partial (some) / not_started (none)
+        if total_courses > 0 and posted_count == total_courses:
+            status = "complete"
+        elif posted_count > 0:
+            status = "partial"
+        else:
+            status = "not_started"
+
         semesters.append({
             "semester": sem_id,
             "term": sem.get("term", ""),
             "courses": courses,
-            "gpa": _round2(gpa),
-            "status": "complete" if complete and gpa is not None else "in_progress",
+            "gpa": _round2(official_gpa),          # only set when fully complete
+            "gpa_so_far": _round2(live_gpa),       # live GPA from posted courses
+            "posted_count": posted_count,
+            "total_courses": total_courses,
+            "status": status,
         })
     return semesters
 
