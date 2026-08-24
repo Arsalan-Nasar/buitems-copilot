@@ -66,14 +66,26 @@ PROBATION = {
 
 WARNING = {
     "student_id": "W001", "name": "Warning Student",
-    "program": "BS Information Technology", "current_semester": 3,
+    "program": "BS Information Technology", "current_semester": 4,
     "program_length": 8, "graduated": False,
     "semesters": {
-        "1": _sem("Fall 2024", [_C(3), _B(3), _C(3)]),
-        "2": _sem("Spring 2025", [_C(3), _C(3), _B(3)]),
+        # a borderline student: rough start, small dip, steady recovery — stays
+        # in the warning band (CGPA ~2.0-2.5). Real movement, not a flat line.
+        "1": _sem("Fall 2023", [_C(3, "Programming Fundamentals"),
+                                 _C(3, "Calculus I"),
+                                 _B(3, "English Composition")]),          # ~2.4
+        "2": _sem("Spring 2024", [_D(3, "Data Structures"),
+                                   _C(3, "Discrete Mathematics"),
+                                   _C(3, "Physics")]),                     # dip ~1.7
+        "3": _sem("Fall 2024", [_C(3, "Database Systems"),
+                                 _B(3, "Web Technologies"),
+                                 _C(3, "Digital Logic Design")]),         # recover ~2.4
+        "4": _sem("Spring 2025", [_B(3, "Operating Systems"),
+                                   _C(3, "Object Oriented Programming"),
+                                   _B(3, "Software Engineering")]),        # ~2.9
     },
-    "fees": [{"term": "Fall 2024", "total": 50000, "paid": 50000}],
-    "attendance": [{"code": "X", "title": "Databases", "present": 24, "total": 30}],
+    "fees": [{"term": "Spring 2025", "total": 50000, "paid": 50000}],
+    "attendance": [{"code": "CS", "title": "Database Systems", "present": 24, "total": 30}],
     "schedule": [],
 }
 

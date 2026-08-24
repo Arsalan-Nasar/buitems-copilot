@@ -781,7 +781,12 @@ def render_report(report, intelligence):
       var c=mk('circle',{{cx:cx,cy:cy,r:isPeak||isLow?6.5:5}},'dot');
       if(isPeak)c.style.stroke='#1f9d6b';if(isLow)c.style.stroke='#d0553f';
       c.style.animationDelay=(1.1+i*.14)+'s';dots.appendChild(c);
-      var t=mk('text',{{x:cx,y:cy-14,'text-anchor':'middle'}},'dv');
+      // nudge the value label so the FIRST point clears the Y-axis numbers and
+      // the LAST point doesn't clip the right edge (center the rest)
+      var anchor='middle', lx=cx;
+      if(i===0){{anchor='start';lx=cx-6;}}
+      else if(i===pts.length-1){{anchor='end';lx=cx+6;}}
+      var t=mk('text',{{x:lx,y:cy-14,'text-anchor':anchor}},'dv');
       t.textContent=Number(p.g).toFixed(2);t.style.animationDelay=(1.2+i*.14)+'s';dots.appendChild(t);
       // x label
       var xt=mk('text',{{x:cx,y:BOT+22,'text-anchor':'middle'}},'ax');
