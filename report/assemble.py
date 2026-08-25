@@ -262,7 +262,7 @@ def build_credits_section(data, total_required=None):
     for sem in data.get("semesters", {}).values():
         for c in sem.get("courses", []):
             ch = c.get("credit_hours") or 0
-            posted = c.get("final") is not None and c.get("mid") is not None
+            posted = c.get("final") is not None  # final posted -> course graded (mid may be 0)
             if posted:
                 completed += ch
             else:
@@ -303,7 +303,7 @@ def build_course_history(data):
     for sem_id in sorted(data.get("semesters", {}), key=lambda s: int(s) if s.isdigit() else 0):
         sem = data["semesters"][sem_id]
         for c in sem.get("courses", []):
-            posted = c.get("final") is not None and c.get("mid") is not None
+            posted = c.get("final") is not None  # final posted -> course graded (mid may be 0)
             marks = total_marks(c) if posted else None
             history.append({
                 "code": c.get("code", ""),
@@ -351,7 +351,7 @@ def build_marks_breakdown(data):
         sem = data["semesters"][sem_id]
         courses = []
         for c in sem.get("courses", []):
-            posted = c.get("final") is not None and c.get("mid") is not None
+            posted = c.get("final") is not None  # final posted -> course graded (mid may be 0)
             courses.append({
                 "code": c.get("code", ""),
                 "title": c.get("title", c.get("code", "Course")),

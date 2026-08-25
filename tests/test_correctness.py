@@ -132,6 +132,16 @@ def run():
         check(f"standing consistent for marks {marks}",
               r_["cgpa"]["standing"] == academic_standing(r_)["tier"])
 
+    # ---- missed mid but sat the final (health-issue case): still graded ----
+    from core.grading import total_marks as _tm, course_status as _cs, marks_to_grade as _m2g
+    missed_mid = {"code":"X","title":"X","credit_hours":3,"mid":None,"final":44,"sessional":22}
+    check("missed-mid course is graded (final posted)", _cs(missed_mid) == "posted")
+    check("missed-mid counts mid as 0", _tm(missed_mid) == 66)   # 0+44+22
+    check("missed-mid gets a real grade", _m2g(_tm(missed_mid)) == "B-")
+    # but a genuinely pending course (no final yet) is NOT graded
+    awaiting = {"code":"Y","title":"Y","credit_hours":3,"mid":20,"final":None,"sessional":None}
+    check("mid-only course stays ungraded", _tm(awaiting) is None and _cs(awaiting) == "mid_only")
+
     # ---- partial results: a semester with SOME posted courses ----
     from core.grading import semester_gpa, semester_gpa_so_far, course_status
     partial = [

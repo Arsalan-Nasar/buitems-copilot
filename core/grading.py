@@ -20,12 +20,20 @@
 
 
 def total_marks(course):
-    """Add mid + final + sessional. Returns None if the final isn't posted yet."""
-    mid = course.get("mid")
+    """Total mark for a course (out of 100).
+
+    The FINAL is what completes a course. BUITEMS posts the sessional together
+    with the final, and the mid comes earlier. So:
+      - once the FINAL is posted, the course is graded. A missing mid or sessional
+        is treated as 0 (the student missed that component — e.g. skipped the mid
+        for health reasons but sat the final). They still get a real grade.
+      - if the final isn't posted yet, the result isn't complete -> None.
+    """
     final = course.get("final")
-    sessional = course.get("sessional")
-    if final is None or mid is None or sessional is None:
-        return None              # result not complete yet
+    if final is None:
+        return None              # no final yet -> course not graded
+    mid = course.get("mid") or 0        # missing component counts as 0
+    sessional = course.get("sessional") or 0
     return mid + final + sessional
 
 
@@ -63,17 +71,18 @@ def course_grade_point(course):
 
 
 def course_status(course):
-    """Where a course is in its result lifecycle. Reflects how BUITEMS posts
-    marks: nothing at first, then mid, then the final+sessional together.
+    """Where a course is in its result lifecycle.
 
-      'posted'    -> mid AND final are in (a real grade can be computed)
-      'mid_only'  -> mid is in but final isn't (awaiting final result)
-      'pending'   -> nothing posted yet (semester just started / not uploaded)
+      'posted'    -> FINAL is in (course is graded). A missed mid/sessional still
+                     counts — the student gets a real grade (e.g. skipped the mid
+                     but sat the final).
+      'mid_only'  -> mid is in but final isn't yet (awaiting final result)
+      'pending'   -> nothing posted yet
     """
     mid = course.get("mid")
     final = course.get("final")
-    if mid is not None and final is not None:
-        return "posted"
+    if final is not None:
+        return "posted"          # final posted -> graded regardless of mid
     if mid is not None:
         return "mid_only"
     return "pending"
