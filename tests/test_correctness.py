@@ -132,6 +132,36 @@ def run():
         check(f"standing consistent for marks {marks}",
               r_["cgpa"]["standing"] == academic_standing(r_)["tier"])
 
+    # ---- FIVE-NINES: pipeline never crashes on garbage input ----
+    import random as _rand
+    from report.render import render_report as _rr
+    from report.intelligence import build_intelligence as _bi
+    from report.assemble import assemble_report as _ar
+    from core.normalize import normalize_student as _ns
+    _garbage = [None, "", {}, [], "text", 42, -1, 3.14, float("nan"),
+                float("inf"), True, False, {"x": 1}, [1, 2], "<script>", 0]
+    _rng = _rand.Random(7)   # isolated RNG so earlier random use can't shift this
+    _crashes = 0
+    _first_err = ""
+    for _ in range(50):
+        _g = lambda: _rng.choice(_garbage)
+        _stu = {"student_id": _g(), "name": _g(), "program": _g(),
+                "current_semester": _g(), "program_length": _g(), "graduated": _g(),
+                "semesters": {str(_rng.randint(1, 8)): {"term": _g(), "courses": [
+                    {"code": _g(), "title": _g(), "credit_hours": _g(),
+                     "mid": _g(), "final": _g(), "sessional": _g()}]}},
+                "fees": _g(), "attendance": _g(), "schedule": _g()}
+        try:
+            _d = _ns(_stu); _r = _ar(_d)
+            _rr(_r, _bi(_r))
+        except Exception as _e:
+            _crashes += 1
+            if not _first_err:
+                _first_err = type(_e).__name__ + ": " + str(_e)
+    if _crashes:
+        print("   fuzz first error ->", _first_err)
+    check("fuzz: 50 garbage inputs never crash", _crashes == 0)
+
     # ---- missed mid but sat the final (health-issue case): still graded ----
     from core.grading import total_marks as _tm, course_status as _cs, marks_to_grade as _m2g
     missed_mid = {"code":"X","title":"X","credit_hours":3,"mid":None,"final":44,"sessional":22}
