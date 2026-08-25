@@ -12,11 +12,32 @@
 import html as _html
 import json as _json
 
+from core.logging_util import get_logger
+
+_log = get_logger("render")
+
 EM_DASH = "\u2014"   # kept out of f-string expressions (older-Python safe)
 
 
 def _esc(v):
     return _html.escape(str(v), quote=True)
+
+
+def _safe_section(name, build_fn, *args):
+    """GRACEFUL DEGRADATION: run one section's build function in isolation.
+
+    If a section raises an unexpected error, we log it and return a small,
+    unobtrusive placeholder instead of letting the whole report crash. The
+    student still gets every other section. One broken part must not sink the
+    entire page — that's the difference between fragile and resilient software.
+    """
+    try:
+        return build_fn(*args)
+    except Exception as exc:  # noqa: BLE001 - deliberately broad: isolate any failure
+        _log.error("section '%s' failed to render: %s", name, exc)
+        return ('<div class="card" style="border-left:3px solid var(--gold)">'
+                '<p class="muted" style="font-size:12.5px;margin:0">'
+                'This section is temporarily unavailable.</p></div>')
 
 
 # ---------------------------------------------------------------------------
@@ -388,6 +409,21 @@ def render_report(report, intelligence):
             'at least two completed semesters.</div></div>'
         )
 
+    # ---- GRACEFUL DEGRADATION: build each independent section in isolation ----
+    # If any one of these throws, _safe_section logs it and returns a small
+    # placeholder, so the rest of the report still renders for the student.
+    sec_flags       = _safe_section("priorities", _flag_cards, intelligence["flags"])
+    sec_papers      = _safe_section("papers_cleared", _papers_cleared, intelligence)
+    sec_degree      = _safe_section("degree_progress", _degree_progress, report["credits"])
+    sec_strengths   = _safe_section("strengths", _sw_items, intelligence["strengths"], "up")
+    sec_weaknesses  = _safe_section("needs_focus", _sw_items, intelligence["weaknesses"], "dn")
+    sec_attendance  = _safe_section("attendance", _attendance_rows, report["attendance"])
+    sec_recovery    = _safe_section("attendance_recovery", _recovery_note, intelligence["attendance_recovery"])
+    sec_semesters   = _safe_section("grades", _combined_semesters, report)
+    sec_suggestions = _safe_section("suggestions", _suggestion_items, intelligence["suggestions"])
+    sec_islamic     = _safe_section("reflection", _islamic_reminder)
+    sec_breakdown   = _safe_section("health_breakdown", _breakdown_rows, hs["breakdown"])
+
     return f'''<!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -681,15 +717,15 @@ def render_report(report, intelligence):
         <div class="hero-name">{_esc(st["name"])}</div>
         <div class="hero-sub">{_esc(st["program"])} &middot; Semester {_esc(st["current_semester"])}</div>
         <div class="band-lg">{_esc(band)}<small>Academic Health Score</small></div>
-        <div class="bd">{_breakdown_rows(hs["breakdown"])}</div>
+        <div class="bd">{sec_breakdown}</div>
       </div>
     </div>
   </div>
 
   <div class="lbl rise d2" id="priorities"><span class="dot"></span><b>Priorities</b><span class="rule"></span></div>
-  <div class="flags">{_flag_cards(intelligence["flags"])}</div>
+  <div class="flags">{sec_flags}</div>
 
-  {_papers_cleared(intelligence)}
+  {sec_papers}
 
   <div class="lbl rise d3" id="trend"><span class="dot"></span><b>GPA Trend</b><span class="rule"></span></div>
   <div class="trend-card glow rise d3">
@@ -703,28 +739,28 @@ def render_report(report, intelligence):
     <div class="card glow rise d4"><h3>Fees</h3><div class="stat sm num">{_esc(fee_due)}</div><div class="stat-sub">{fee_total}</div><span class="pill {fee_pill[0]}">{fee_pill[1]}</span></div>
   </div>
 
-  {_degree_progress(report["credits"])}
+  {sec_degree}
 
   <div class="grid g2" style="margin-top:14px">
-    <div class="card strengths rise d5"><h3>Strengths</h3><div class="sw">{_sw_items(intelligence["strengths"], "up")}</div></div>
-    <div class="card needsfocus rise d5"><h3>Needs Focus</h3><div class="sw">{_sw_items(intelligence["weaknesses"], "dn")}</div></div>
+    <div class="card strengths rise d5"><h3>Strengths</h3><div class="sw">{sec_strengths}</div></div>
+    <div class="card needsfocus rise d5"><h3>Needs Focus</h3><div class="sw">{sec_weaknesses}</div></div>
   </div>
 
   <div class="lbl rise d5" id="attendance"><span class="dot"></span><b>Attendance</b><span class="rule"></span></div>
   <div class="card rise d5">
     <table class="tbl"><thead><tr><th>Course</th><th class="c">Classes</th><th class="r">Rate</th></tr></thead>
-      <tbody>{_attendance_rows(report["attendance"])}</tbody></table>
-    {_recovery_note(intelligence["attendance_recovery"])}
+      <tbody>{sec_attendance}</tbody></table>
+    {sec_recovery}
   </div>
 
   <div class="lbl rise d6" id="semesters"><span class="dot"></span><b>Grades &amp; Marks Detail</b><span class="rule"></span></div>
   <p class="muted" style="font-size:12px;margin:0 2px 14px">Each semester with its courses. Tap any course to see how the grade was composed (Mid-Term 25 &middot; Final 50 &middot; Sessional 25).</p>
-  <div class="rise d6">{_combined_semesters(report)}</div>
+  <div class="rise d6">{sec_semesters}</div>
 
   <div class="lbl rise d7" id="next"><span class="dot"></span><b>What to do next</b><span class="rule"></span></div>
-  <div class="card rise d7"><ul class="tips">{_suggestion_items(intelligence["suggestions"])}</ul></div>
+  <div class="card rise d7"><ul class="tips">{sec_suggestions}</ul></div>
 
-  {_islamic_reminder()}
+  {sec_islamic}
 
   <div class="brandfoot rise">
     <img src="/static/zira-logo.png" alt="ZIRA Technologies" class="bf-logo">

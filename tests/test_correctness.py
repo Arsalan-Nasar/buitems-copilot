@@ -132,6 +132,29 @@ def run():
         check(f"standing consistent for marks {marks}",
               r_["cgpa"]["standing"] == academic_standing(r_)["tier"])
 
+    # ---- GRACEFUL DEGRADATION: one broken section doesn't sink the report ----
+    import report.render as _rmod
+    from report.intelligence import build_intelligence as _bi2
+    from report.assemble import assemble_report as _ar2
+    from core.normalize import normalize_student as _ns2
+    from tests.fixtures.students import ALL_STUDENTS as _AS
+    _rr2 = _rmod.render_report
+    _rep = _ar2(_ns2(_AS["honors"]))
+    _int = _bi2(_rep)
+    _orig_dp = _rmod._degree_progress
+    def _boom(*a):
+        raise ValueError("simulated section crash")
+    _rmod._degree_progress = _boom
+    try:
+        _html_broken = _rr2(_rep, _int)
+    finally:
+        _rmod._degree_progress = _orig_dp
+    check("graceful: report still renders when a section fails", len(_html_broken) > 5000)
+    check("graceful: shows placeholder for broken section",
+          "temporarily unavailable" in _html_broken)
+    check("graceful: other sections still present",
+          "GPA Trend" in _html_broken and "Grades" in _html_broken)
+
     # ---- FIVE-NINES: pipeline never crashes on garbage input ----
     import random as _rand
     from report.render import render_report as _rr

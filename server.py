@@ -20,6 +20,9 @@ from config import DATA_FILE
 from core.authz import fetch_student, AuthorizationError
 from core.normalize import normalize_student
 from core.audit import log_event
+from core.logging_util import get_logger
+
+_log = get_logger("server")
 from report.assemble import assemble_report
 from report.intelligence import build_intelligence
 from report.render import render_report
@@ -100,6 +103,7 @@ def generate_report_html():
         data = fetch_student(DATABASE, logged_in_id)
     except AuthorizationError:
         log_event(logged_in_id, "report", "error", extra={"reason": "auth_failed"})
+        _log.warning("authorization failed for a report request")
         return ("<h1>We couldn't verify your account.</h1>"
                 "<p>Please log in again through the portal.</p>", 403)
 
@@ -109,9 +113,12 @@ def generate_report_html():
         intel = build_intelligence(report)
         html = render_report(report, intel)
         log_event(logged_in_id, "report", "generated")
+        _log.info("report generated successfully")
         return (html, 200)
-    except Exception:
+    except Exception as exc:
         log_event(logged_in_id, "report", "error", extra={"reason": "render_failed"})
+        # ERROR level with the exception detail for debugging (no student data).
+        _log.error("report generation failed: %s", exc, exc_info=True)
         return ("<h1>Something went wrong generating your report.</h1>"
                 "<p>Please try again in a moment.</p>", 500)
 
