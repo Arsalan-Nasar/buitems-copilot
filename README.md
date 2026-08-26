@@ -134,4 +134,7 @@ Active development. The core assistant is complete and working; portal integrati
 
 ## License
 
-This project is shared for demonstration and educational purposes. Please contact the team before reuse.
+Copyright © 2026 Arsalan Nasar, ZIRA Technologies. All rights reserved.
+
+This repository is public for viewing and evaluation only. The code is proprietary — see [LICENSE](LICENSE). For licensing enquiries, contact arsalan@getzira.tech.
+
