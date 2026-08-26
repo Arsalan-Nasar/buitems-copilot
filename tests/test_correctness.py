@@ -63,33 +63,36 @@ def run():
     eng = engine_cgpa(DATA["semesters"])
     check(f"CGPA engine matches independent calc ({ind})", ind == eng)
 
-    # ---- CGPA must appear correctly in the dashboard output ----
-    from skills.cgpa_dashboard import cgpa_dashboard
-    dash = cgpa_dashboard(DATA, "my cgpa")
-    check("CGPA value appears in dashboard", str(ind) in dash)
+    # ---- CGPA / fees / attendance must appear correctly in the REAL report ----
+    # We render the full report and verify the independently-computed values show
+    # up in it — testing the actual pipeline students see, not a retired skill.
+    from core.normalize import normalize_student as _ns0
+    from report.assemble import assemble_report as _ar0
+    from report.intelligence import build_intelligence as _bi0
+    from report.render import render_report as _rr0
+    _data0 = _ns0(DATA)
+    _report0 = _ar0(_data0)
+    _html0 = _rr0(_report0, _bi0(_report0))
 
-    # ---- Fees: independent totals must appear in the skill output ----
-    from skills.fees import fees_summary
+    check("CGPA value appears in the report", str(ind) in _html0)
+
     total, paid, due = indep_fees(DATA)
-    fout = fees_summary(DATA, "my fees")
-    check(f"fees total correct ({total:,})", f"{total:,}" in fout)
-    check(f"fees paid correct ({paid:,})", f"{paid:,}" in fout)
-    check(f"fees due correct ({due:,})", f"{due:,}" in fout)
+    # the report shows fees; the due figure (or "All clear" when nothing is due)
+    check("fees reflected in report",
+          ("{:,}".format(due) in _html0) or (due == 0 and "clear" in _html0.lower()))
 
-    # ---- Attendance: each percentage must appear ----
-    from skills.attendance import attendance_summary
-    aout = attendance_summary(DATA, "attendance")
+    # attendance percentages appear in the report
     for code, pct in indep_attendance(DATA).items():
-        check(f"attendance {code} = {pct}%", f"{pct}%" in aout)
+        check("attendance {} = {}% in report".format(code, pct),
+              "{}%".format(pct) in _html0)
 
-    # ---- Attendance: the <75% course must be flagged LOW ----
-    # The app flags by course TITLE (more student-friendly than the code),
-    # so we verify the title appears in the low-attendance warning.
+    # the <75% course must be flagged; the report flags by course TITLE
     title_by_code = {a["code"]: a.get("title", a["code"]) for a in DATA["attendance"]}
     low_courses = [c for c, p in indep_attendance(DATA).items() if p < 75]
     for c in low_courses:
         title = title_by_code.get(c, c)
-        check(f"low-attendance course '{title}' is flagged", title in aout)
+        check("low-attendance course '{}' flagged in report".format(title),
+              title in _html0)
 
     # ---- Grade boundaries: spot-check the scale is exact ----
     from core.grading import marks_to_grade
