@@ -1,11 +1,7 @@
-# config.py — central settings for BUITEMS Copilot
-import os
-from dotenv import load_dotenv
+# config.py — central settings for Evora.
+#
+# Evora keeps configuration minimal: the only setting it needs is where the
+# student data lives. No API keys, no external services.
 
-load_dotenv()
-
-GROQ_API_KEY = os.getenv("GROQ_API_KEY")
-MODEL_NAME = "llama-3.3-70b-versatile"
-
-# Path to the student data file
+# Path to the student data file (a structured academic record).
 DATA_FILE = "data/student.json"
